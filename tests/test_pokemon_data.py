@@ -10,13 +10,18 @@ def test_required_fields():
         assert "type_1" in p
 
 def test_special_group_generation():
-    specials = [p for p in POKEMON_LIST if p["name"] in ("Pikachu", "Eevee")]
+    special_names = {"Pikachu", "Raichu", "Eevee", "Vaporeon", "Jolteon",
+                     "Flareon", "Espeon", "Umbreon", "Leafeon", "Glaceon", "Sylveon"}
+    specials = [p for p in POKEMON_LIST if p["name"] in special_names]
+    assert len(specials) == 11
     for p in specials:
         assert p["generation"] == 0
 
 def test_gen1_starters_present():
     names = [p["name"] for p in POKEMON_LIST]
-    for name in ["Bulbasaur", "Charmander", "Squirtle", "Charizard"]:
+    for name in ["Bulbasaur", "Ivysaur", "Venusaur",
+                 "Charmander", "Charmeleon", "Charizard",
+                 "Squirtle", "Wartortle", "Blastoise"]:
         assert name in names
 
 def test_eevee_evolutions_present():
