@@ -15,8 +15,6 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 }
 
-BASE_URL = "https://www.cardmarket.com/en/Pokemon/Products/Singles"
-
 
 def _parse_price(text):
     """Parse '45,00 €' or '45.00' into a float."""
