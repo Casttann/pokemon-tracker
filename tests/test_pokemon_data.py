@@ -9,6 +9,10 @@ def test_required_fields():
         assert "generation" in p
         assert "type_1" in p
 
+def test_unique_names():
+    names = [p["name"] for p in POKEMON_LIST]
+    assert len(set(names)) == len(names)
+
 def test_special_group_generation():
     special_names = {"Pikachu", "Raichu", "Eevee", "Vaporeon", "Jolteon",
                      "Flareon", "Espeon", "Umbreon", "Leafeon", "Glaceon", "Sylveon"}
