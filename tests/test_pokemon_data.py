@@ -1,7 +1,7 @@
 from pokemon_data import POKEMON_LIST
 
 def test_total_count():
-    assert len(POKEMON_LIST) == 88
+    assert len(POKEMON_LIST) == 92
 
 def test_required_fields():
     for p in POKEMON_LIST:

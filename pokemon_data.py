@@ -1,10 +1,13 @@
 POKEMON_LIST = [
     # Gen 1 — Starters
     {"name": "Bulbasaur",   "generation": 1, "type_1": "Grass",  "type_2": "Poison"},
+    {"name": "Ivysaur",     "generation": 1, "type_1": "Grass",  "type_2": "Poison"},
     {"name": "Venusaur",    "generation": 1, "type_1": "Grass",  "type_2": "Poison"},
     {"name": "Charmander",  "generation": 1, "type_1": "Fire",   "type_2": None},
+    {"name": "Charmeleon",  "generation": 1, "type_1": "Fire",   "type_2": None},
     {"name": "Charizard",   "generation": 1, "type_1": "Fire",   "type_2": "Flying"},
     {"name": "Squirtle",    "generation": 1, "type_1": "Water",  "type_2": None},
+    {"name": "Wartortle",   "generation": 1, "type_1": "Water",  "type_2": None},
     {"name": "Blastoise",   "generation": 1, "type_1": "Water",  "type_2": None},
     # Gen 2
     {"name": "Chikorita",   "generation": 2, "type_1": "Grass",  "type_2": None},
@@ -88,6 +91,7 @@ POKEMON_LIST = [
     {"name": "Quaquaval",   "generation": 9, "type_1": "Water",  "type_2": "Fighting"},
     # Special group (generation = 0)
     {"name": "Pikachu",     "generation": 0, "type_1": "Electric", "type_2": None},
+    {"name": "Raichu",      "generation": 0, "type_1": "Electric", "type_2": None},
     {"name": "Eevee",       "generation": 0, "type_1": "Normal",   "type_2": None},
     {"name": "Vaporeon",    "generation": 0, "type_1": "Water",    "type_2": None},
     {"name": "Jolteon",     "generation": 0, "type_1": "Electric", "type_2": None},
