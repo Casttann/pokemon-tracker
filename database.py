@@ -1,4 +1,3 @@
-import os
 from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
 from pokemon_data import POKEMON_LIST
@@ -79,7 +78,7 @@ def get_all_cards(status=None):
 
 
 def get_card_by_id(card_id):
-    card = Card.query.get(card_id)
+    card = db.session.get(Card, card_id)
     return _card_to_dict(card) if card else None
 
 
@@ -106,14 +105,14 @@ def add_card(pokemon_id, card_name, set_name, rarity, image_url,
 
 
 def update_card_status(card_id, new_status):
-    card = Card.query.get(card_id)
+    card = db.session.get(Card, card_id)
     if card:
         card.status = new_status
         db.session.commit()
 
 
 def delete_card(card_id):
-    card = Card.query.get(card_id)
+    card = db.session.get(Card, card_id)
     if card:
         db.session.delete(card)
         db.session.commit()
@@ -121,7 +120,7 @@ def delete_card(card_id):
 
 def save_price_snapshot(card_id, price):
     now = datetime.now(timezone.utc).isoformat()
-    card = Card.query.get(card_id)
+    card = db.session.get(Card, card_id)
     if card:
         card.price_current = price
         card.price_updated = now
