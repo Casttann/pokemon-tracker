@@ -161,6 +161,7 @@ main {
 .card-empty:hover { border-color: var(--accent); background: #12122a; }
 .card-empty .plus { font-size: 28px; color: #2d2d5e; }
 .card-empty:hover .plus { color: var(--accent); }
+.card-empty .empty-name { font-size: 10px; color: var(--text-dim); margin-top: 4px; padding: 0 4px; text-align: center; }
 
 /* CARD TILE */
 .card-tile {
@@ -284,9 +285,9 @@ main {
 .result-price { font-size: 14px; color: var(--accent); font-weight: 700; }
 
 /* DETAIL MODAL */
-.modal-detail-inner { max-width: 600px; }
-.detail-layout { display: flex; gap: 20px; }
-.detail-img { width: 180px; flex-shrink: 0; border-radius: 8px; }
+.modal-detail-inner { max-width: 760px; }
+.detail-layout { display: flex; gap: 24px; }
+.detail-img { width: 320px; flex-shrink: 0; border-radius: 8px; }
 .detail-meta { flex: 1; }
 .detail-pokemon { font-size: 13px; color: var(--accent); margin-bottom: 4px; }
 .detail-card-name { font-size: 16px; font-weight: 700; margin-bottom: 4px; }

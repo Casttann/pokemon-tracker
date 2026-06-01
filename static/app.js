@@ -107,55 +107,50 @@ function renderGrid() {
   const grid = document.getElementById('grid');
   grid.innerHTML = '';
 
+  const pokemonById = {};
+  allPokemon.forEach(p => { pokemonById[p.id] = p; });
+
   const filteredPokemon = allPokemon.filter(p => {
     if (activeGen !== null && p.generation !== activeGen) return false;
     if (search && !p.name.toLowerCase().includes(search)) return false;
     return true;
   });
+  const allowedIds = new Set(filteredPokemon.map(p => p.id));
 
-  for (const pokemon of filteredPokemon) {
-    const pokemonCards = allCards.filter(c => c.pokemon_id === pokemon.id);
-    const visibleCards = pokemonCards.filter(c => {
-      if (activeTab === 'wishlist') return c.status === 'wishlist';
-      if (activeTab === 'owned') return c.status === 'owned';
-      return true;
-    });
+  // One flat list of every matching card, sorted globally (not per Pokemon).
+  const visibleCards = allCards.filter(c => {
+    if (!allowedIds.has(c.pokemon_id)) return false;
+    if (activeTab === 'wishlist') return c.status === 'wishlist';
+    if (activeTab === 'owned') return c.status === 'owned';
+    return true;
+  });
 
-    if (activeTab !== 'all' && visibleCards.length === 0) continue;
+  const cardsWrap = document.createElement('div');
+  cardsWrap.className = 'section-cards';
 
-    const section = document.createElement('section');
-    section.className = 'pokemon-section';
+  sortCards(visibleCards)
+    .forEach(card => cardsWrap.appendChild(buildCardTile(card, pokemonById[card.pokemon_id])));
 
-    const label = document.createElement('div');
-    label.className = 'section-label';
-    label.textContent = visibleCards.length
-      ? `${pokemon.name} · ${visibleCards.length}`
-      : pokemon.name;
-    section.appendChild(label);
-
-    const cardsWrap = document.createElement('div');
-    cardsWrap.className = 'section-cards';
-
-    if (visibleCards.length === 0) {
-      cardsWrap.appendChild(buildEmptySlot(pokemon));
-    } else {
-      // Show every card as its own tile, ordered by the active sort.
-      sortCards(visibleCards)
-        .forEach(card => cardsWrap.appendChild(buildCardTile(card, pokemon)));
-      // Trailing "+" tile to add more cards for this Pokemon.
-      cardsWrap.appendChild(buildEmptySlot(pokemon));
-    }
-
-    section.appendChild(cardsWrap);
-    grid.appendChild(section);
+  // In the "all" tab, Pokemon without any card still get a "+" tile to add one.
+  if (activeTab === 'all') {
+    const withCards = new Set(visibleCards.map(c => c.pokemon_id));
+    filteredPokemon
+      .filter(p => !withCards.has(p.id))
+      .forEach(p => cardsWrap.appendChild(buildEmptySlot(p)));
   }
+  // Trailing "+" tile to add a card for any Pokemon.
+  cardsWrap.appendChild(buildEmptySlot(null));
+
+  grid.appendChild(cardsWrap);
 }
 
 function buildEmptySlot(pokemon) {
   const el = document.createElement('div');
   el.className = 'card-empty';
-  el.innerHTML = '<div class="plus">+</div>';
-  el.onclick = () => openAddModal(pokemon.name);
+  el.innerHTML = pokemon
+    ? `<div class="plus">+</div><div class="empty-name">${pokemon.name}</div>`
+    : '<div class="plus">+</div>';
+  el.onclick = () => openAddModal(pokemon ? pokemon.name : '');
   return el;
 }
 
