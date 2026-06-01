@@ -145,6 +145,11 @@ function buildStackedSlot(cards, pokemon) {
   wrapper.className = 'card-stack';
 
   const top = buildCardTile(cards[0], pokemon);
+  // Count badge so it's obvious the slot holds several cards (click to expand).
+  const count = document.createElement('div');
+  count.className = 'count-badge';
+  count.textContent = '🃏 ' + cards.length;
+  top.appendChild(count);
   wrapper.appendChild(top);
 
   let expanded = false;
