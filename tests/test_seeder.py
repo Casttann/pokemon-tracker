@@ -8,7 +8,8 @@ def _card(name, rarity, price, url="https://prices.pokemontcg.io/cardmarket/" ):
 
 def test_rarity_score_order():
     assert rarity_score("Special Illustration Rare") > rarity_score("Illustration Rare")
-    assert rarity_score("Illustration Rare") > rarity_score("Rare Holo")
+    assert rarity_score("Illustration Rare") > rarity_score("Radiant Rare")
+    assert rarity_score("Radiant Rare") > rarity_score("Rare Holo")
     assert rarity_score("Rare Holo") > rarity_score("Triple Rare")
     assert rarity_score("Triple Rare") > rarity_score("Double Rare")
     assert rarity_score("Double Rare") > rarity_score("Rare")

@@ -3,6 +3,7 @@ let allCards = [];
 let allPokemon = [];
 let activeTab = 'all';
 let activeGen = null;
+let activeSort = 'price-desc';
 let pollInterval = null;
 
 const TYPE_EMOJI = {
@@ -65,6 +66,40 @@ function setGen(btn, gen) {
   renderGrid();
 }
 
+function setSort(value) {
+  activeSort = value;
+  renderGrid();
+}
+
+// Rarity ranking for sorting (higher = fancier), mirrors the seeder.
+function rarityRank(rarity) {
+  const r = (rarity || '').toLowerCase();
+  if (r.includes('special illustration rare')) return 7;
+  if (r.includes('illustration rare')) return 6;
+  if (r.includes('radiant')) return 5;
+  if (r.includes('holo')) return 4;
+  if (r.includes('triple rare')) return 3;
+  if (r.includes('double rare')) return 2;
+  if (r.includes('rare')) return 1;
+  return 0;
+}
+
+function sortCards(cards) {
+  const arr = cards.slice();
+  switch (activeSort) {
+    case 'price-asc':
+      return arr.sort((a, b) => (a.price_current ?? Infinity) - (b.price_current ?? Infinity));
+    case 'rarity':
+      return arr.sort((a, b) => rarityRank(b.rarity) - rarityRank(a.rarity)
+        || (b.price_current || 0) - (a.price_current || 0));
+    case 'name':
+      return arr.sort((a, b) => a.card_name.localeCompare(b.card_name));
+    case 'price-desc':
+    default:
+      return arr.sort((a, b) => (b.price_current || 0) - (a.price_current || 0));
+  }
+}
+
 // ── Grid ──────────────────────────────────────────────────────────────────
 function renderGrid() {
   updateStats();
@@ -104,10 +139,8 @@ function renderGrid() {
     if (visibleCards.length === 0) {
       cardsWrap.appendChild(buildEmptySlot(pokemon));
     } else {
-      // Show every card as its own tile (fanciest/most expensive first).
-      visibleCards
-        .slice()
-        .sort((a, b) => (b.price_current || 0) - (a.price_current || 0))
+      // Show every card as its own tile, ordered by the active sort.
+      sortCards(visibleCards)
         .forEach(card => cardsWrap.appendChild(buildCardTile(card, pokemon)));
       // Trailing "+" tile to add more cards for this Pokemon.
       cardsWrap.appendChild(buildEmptySlot(pokemon));

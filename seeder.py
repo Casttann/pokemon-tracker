@@ -13,13 +13,15 @@ def is_seeding() -> bool:
 def rarity_score(rarity: str) -> int:
     """Rank a card rarity by collecting preference (higher is better).
 
-    Order: Special Illustration Rare > Illustration Rare > Holo >
+    Order: Special Illustration Rare > Illustration Rare > Radiant > Holo >
     Triple Rare > Double Rare > any other Rare > everything else.
     """
     r = (rarity or "").lower()
     if "special illustration rare" in r:
-        return 6
+        return 7
     if "illustration rare" in r:
+        return 6
+    if "radiant" in r:
         return 5
     if "holo" in r:
         return 4
