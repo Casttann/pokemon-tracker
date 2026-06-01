@@ -53,7 +53,9 @@ _DESIRABLE_KEYWORDS = (
 )
 
 # Per-Pokemon cap so very common Pokemon (Pikachu, Eevee) don't flood the grid.
-MAX_CARDS_PER_POKEMON = 15
+MAX_CARDS_PER_POKEMON = 18
+# Slots reserved for (cheap) promos so they survive the cap amid fancier cards.
+PROMO_RESERVED = 4
 
 
 def is_desirable(rarity: str) -> bool:
@@ -62,15 +64,29 @@ def is_desirable(rarity: str) -> bool:
     return any(keyword in r for keyword in _DESIRABLE_KEYWORDS)
 
 
-def select_cards(results: list, max_cards: int = MAX_CARDS_PER_POKEMON) -> list:
+def is_combo_card(card_name: str) -> bool:
+    """True for multi-Pokemon cards (Tag Team etc.), e.g. 'Pikachu & Zekrom-GX'."""
+    name = card_name or ""
+    return "&" in name or " + " in name
+
+
+def _is_promo(rarity: str) -> bool:
+    return "promo" in (rarity or "").lower()
+
+
+def select_cards(results: list, max_cards: int = MAX_CARDS_PER_POKEMON,
+                 reserved_promos: int = PROMO_RESERVED) -> list:
     """Pick the nice/special cards for one Pokemon (may be several).
 
-    Keeps all desirable rarities, de-duplicated by (name, set), ranked by
-    rarity then price (fanciest first), capped at max_cards. Falls back to a
-    single best card if nothing qualifies, guaranteeing at least one per Pokemon.
+    Excludes multi-Pokemon combo cards. Keeps all desirable rarities,
+    de-duplicated by (name, set), ranked by rarity then price (fanciest first),
+    capped at max_cards but reserving a few slots for cheap promos so they are
+    not forgotten. Falls back to one best solo card so every Pokemon gets >=1.
     """
-    desirable = [r for r in results
-                 if r.get("cardmarket_url") and is_desirable(r.get("rarity"))]
+    solo = [r for r in results
+            if r.get("cardmarket_url") and not is_combo_card(r.get("card_name"))]
+    desirable = [r for r in solo if is_desirable(r.get("rarity"))]
+
     seen = set()
     unique = []
     for card in sorted(desirable,
@@ -81,10 +97,21 @@ def select_cards(results: list, max_cards: int = MAX_CARDS_PER_POKEMON) -> list:
             continue
         seen.add(key)
         unique.append(card)
+
     if not unique:
-        best = pick_best_card(results)
+        best = pick_best_card(solo)
         return [best] if best else []
-    return unique[:max_cards]
+
+    promos = [c for c in unique if _is_promo(c["rarity"])]
+    non_promos = [c for c in unique if not _is_promo(c["rarity"])]
+    reserved = sorted(promos, key=lambda r: r["price"])[:reserved_promos]
+
+    take_non = max(max_cards - len(reserved), 0)
+    chosen = non_promos[:take_non] + reserved
+    if len(chosen) < max_cards:
+        leftovers = non_promos[take_non:] + [p for p in promos if p not in reserved]
+        chosen += leftovers[:max_cards - len(chosen)]
+    return chosen[:max_cards]
 
 
 def _run_seed(app):

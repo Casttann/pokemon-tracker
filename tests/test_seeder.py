@@ -85,3 +85,32 @@ def test_select_cards_fallback_guarantees_one():
     selected = select_cards(results)
     assert len(selected) == 1
     assert selected[0]["card_name"] == "OnlyPlain"
+
+
+def test_select_excludes_combo_cards():
+    results = [
+        _card("Pikachu & Zekrom-GX", "Rare Holo GX", 40.0),
+        _card("Pikachu", "Illustration Rare", 44.0),
+    ]
+    names = {c["card_name"] for c in select_cards(results)}
+    assert names == {"Pikachu"}
+
+
+def test_select_fallback_excludes_combos():
+    # No desirable solo card; only a combo (excluded) and a plain solo common.
+    results = [
+        _card("Piplup & Blastoise-GX", "Rare Holo GX", 20.0),
+        _card("Piplup", "Common", 0.5),
+    ]
+    selected = select_cards(results)
+    assert len(selected) == 1
+    assert selected[0]["card_name"] == "Piplup"
+
+
+def test_select_keeps_promos_despite_cap():
+    fancy = [_card(f"Holo{i}", "Rare Holo", float(i + 1)) for i in range(20)]
+    promos = [_card("PromoA", "Promo", 2.0), _card("PromoB", "Promo", 3.0)]
+    selected = select_cards(fancy + promos, max_cards=5, reserved_promos=2)
+    names = {c["card_name"] for c in selected}
+    assert len(selected) == 5
+    assert "PromoA" in names and "PromoB" in names
