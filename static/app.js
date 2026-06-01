@@ -4,6 +4,7 @@ let allPokemon = [];
 let activeTab = 'all';
 let activeGen = null;
 let activeSort = 'price-desc';
+let groupByPokemon = true;
 let pollInterval = null;
 
 const TYPE_EMOJI = {
@@ -71,6 +72,13 @@ function setSort(value) {
   renderGrid();
 }
 
+function setGroupBy(btn, grouped) {
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  groupByPokemon = grouped;
+  renderGrid();
+}
+
 // Rarity ranking for sorting (higher = fancier), mirrors the seeder.
 function rarityRank(rarity) {
   const r = (rarity || '').toLowerCase();
@@ -115,9 +123,39 @@ function renderGrid() {
     if (search && !p.name.toLowerCase().includes(search)) return false;
     return true;
   });
-  const allowedIds = new Set(filteredPokemon.map(p => p.id));
+  const visibleForPokemon = (pokemon) => allCards.filter(c => {
+    if (c.pokemon_id !== pokemon.id) return false;
+    if (activeTab === 'wishlist') return c.status === 'wishlist';
+    if (activeTab === 'owned') return c.status === 'owned';
+    return true;
+  });
 
-  // One flat list of every matching card, sorted globally (not per Pokemon).
+  if (groupByPokemon) {
+    // Grouped view: one section per Pokemon, cards sorted within each group.
+    for (const pokemon of filteredPokemon) {
+      const cards = visibleForPokemon(pokemon);
+      if (activeTab !== 'all' && cards.length === 0) continue;
+
+      const section = document.createElement('section');
+      section.className = 'pokemon-section';
+
+      const label = document.createElement('div');
+      label.className = 'section-label';
+      label.textContent = cards.length ? `${pokemon.name} · ${cards.length}` : pokemon.name;
+      section.appendChild(label);
+
+      const cardsWrap = document.createElement('div');
+      cardsWrap.className = 'section-cards';
+      sortCards(cards).forEach(card => cardsWrap.appendChild(buildCardTile(card, pokemon)));
+      cardsWrap.appendChild(buildEmptySlot(pokemon));
+      section.appendChild(cardsWrap);
+      grid.appendChild(section);
+    }
+    return;
+  }
+
+  // Global view: one flat list of every matching card, sorted across all Pokemon.
+  const allowedIds = new Set(filteredPokemon.map(p => p.id));
   const visibleCards = allCards.filter(c => {
     if (!allowedIds.has(c.pokemon_id)) return false;
     if (activeTab === 'wishlist') return c.status === 'wishlist';

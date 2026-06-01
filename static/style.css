@@ -78,9 +78,9 @@ header {
   flex-wrap: wrap;
 }
 
-.filter-tabs, .filter-gens { display: flex; gap: 4px; }
+.filter-tabs, .filter-gens, .view-toggle { display: flex; gap: 4px; }
 
-.tab, .gen-btn {
+.tab, .gen-btn, .view-btn {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-dim);
@@ -90,7 +90,7 @@ header {
   cursor: pointer;
   transition: all 0.15s;
 }
-.tab.active, .gen-btn.active {
+.tab.active, .gen-btn.active, .view-btn.active {
   background: var(--accent-dim);
   border-color: var(--accent);
   color: white;

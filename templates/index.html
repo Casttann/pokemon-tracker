@@ -44,6 +44,10 @@
       <button class="gen-btn" onclick="setGen(this, 9)">Gen 9</button>
       <button class="gen-btn" onclick="setGen(this, 0)">Special</button>
     </div>
+    <div class="view-toggle">
+      <button class="view-btn active" onclick="setGroupBy(this, true)">Por Pokémon</button>
+      <button class="view-btn" onclick="setGroupBy(this, false)">Global</button>
+    </div>
     <select class="sort-select" id="sort-select" onchange="setSort(this.value)">
       <option value="price-desc">Precio ↓ (más caras)</option>
       <option value="price-asc">Precio ↑ (más baratas)</option>
