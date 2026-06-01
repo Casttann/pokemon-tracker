@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pokédex Tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="header-title">⚡ Pokédex Tracker</div>
+    <div class="header-stats">
+      <span class="stat"><span class="stat-value" id="stat-total">0</span> cartas</span>
+      <span class="stat">Wishlist: <span class="stat-value" id="stat-wishlist">€0</span></span>
+      <span class="stat">Colección: <span class="stat-value" id="stat-owned">€0</span></span>
+      <span class="stat last-update" id="stat-updated">–</span>
+    </div>
+    <button class="btn-refresh" id="btn-refresh" onclick="triggerRefresh()">
+      <span id="refresh-icon">↻</span> Actualizar precios
+    </button>
+  </header>
+
+  <!-- FILTERS -->
+  <div class="filters">
+    <div class="filter-tabs">
+      <button class="tab active" onclick="setTab(this, 'all')">Todos</button>
+      <button class="tab" onclick="setTab(this, 'wishlist')">Wishlist</button>
+      <button class="tab" onclick="setTab(this, 'owned')">Colección</button>
+    </div>
+    <div class="filter-gens">
+      <button class="gen-btn active" onclick="setGen(this, null)">Todas</button>
+      <button class="gen-btn" onclick="setGen(this, 1)">Gen 1</button>
+      <button class="gen-btn" onclick="setGen(this, 2)">Gen 2</button>
+      <button class="gen-btn" onclick="setGen(this, 3)">Gen 3</button>
+      <button class="gen-btn" onclick="setGen(this, 4)">Gen 4</button>
+      <button class="gen-btn" onclick="setGen(this, 5)">Gen 5</button>
+      <button class="gen-btn" onclick="setGen(this, 6)">Gen 6</button>
+      <button class="gen-btn" onclick="setGen(this, 7)">Gen 7</button>
+      <button class="gen-btn" onclick="setGen(this, 8)">Gen 8</button>
+      <button class="gen-btn" onclick="setGen(this, 9)">Gen 9</button>
+      <button class="gen-btn" onclick="setGen(this, 0)">Special</button>
+    </div>
+    <input class="search-input" id="search-input" placeholder="Buscar Pokemon..." oninput="renderGrid()">
+  </div>
+
+  <!-- MAIN GRID -->
+  <main id="grid"></main>
+
+  <!-- ADD CARD MODAL -->
+  <div class="modal-overlay" id="modal-add" style="display:none" onclick="closeAddModal(event)">
+    <div class="modal">
+      <h2>Añadir carta</h2>
+      <div class="modal-search">
+        <input class="modal-input" id="add-search-input" placeholder="Nombre del Pokemon...">
+        <button class="btn-primary" onclick="searchCards()">Buscar</button>
+      </div>
+      <div id="search-results"></div>
+    </div>
+  </div>
+
+  <!-- CARD DETAIL MODAL -->
+  <div class="modal-overlay" id="modal-detail" style="display:none" onclick="closeDetailModal(event)">
+    <div class="modal modal-detail-inner">
+      <div id="detail-content"></div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
