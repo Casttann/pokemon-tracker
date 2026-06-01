@@ -44,6 +44,49 @@ def pick_best_card(results: list) -> dict | None:
     return max(candidates, key=lambda r: (rarity_score(r["rarity"]), -r["price"]))
 
 
+# Rarity keywords considered collectible/"nice" (full arts, alt arts, holos,
+# VMAX/VSTAR/ex/Mega, radiant, shiny, rainbow, secret, gold, promos...).
+_DESIRABLE_KEYWORDS = (
+    "illustration", "holo", "ultra", "rainbow", "hyper", "radiant",
+    "vmax", "vstar", "gx", "ex", "mega", "amazing", "shiny", "gold",
+    "secret", "promo", "double rare", "full art", "alt",
+)
+
+# Per-Pokemon cap so very common Pokemon (Pikachu, Eevee) don't flood the grid.
+MAX_CARDS_PER_POKEMON = 15
+
+
+def is_desirable(rarity: str) -> bool:
+    """True if a rarity is a collectible/special card worth seeding."""
+    r = (rarity or "").lower()
+    return any(keyword in r for keyword in _DESIRABLE_KEYWORDS)
+
+
+def select_cards(results: list, max_cards: int = MAX_CARDS_PER_POKEMON) -> list:
+    """Pick the nice/special cards for one Pokemon (may be several).
+
+    Keeps all desirable rarities, de-duplicated by (name, set), ranked by
+    rarity then price (fanciest first), capped at max_cards. Falls back to a
+    single best card if nothing qualifies, guaranteeing at least one per Pokemon.
+    """
+    desirable = [r for r in results
+                 if r.get("cardmarket_url") and is_desirable(r.get("rarity"))]
+    seen = set()
+    unique = []
+    for card in sorted(desirable,
+                       key=lambda r: (rarity_score(r["rarity"]), r["price"]),
+                       reverse=True):
+        key = (card["card_name"], card["set_name"])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(card)
+    if not unique:
+        best = pick_best_card(results)
+        return [best] if best else []
+    return unique[:max_cards]
+
+
 def _run_seed(app):
     global _seeding
     try:
@@ -53,17 +96,17 @@ def _run_seed(app):
             for pokemon in get_pokemon_list():
                 if pokemon["id"] in existing:
                     continue
-                results = search_cardmarket(pokemon["name"], max_price=MAX_PRICE)
-                best = pick_best_card(results)
-                if best:
+                results = search_cardmarket(pokemon["name"], max_price=MAX_PRICE,
+                                            page_size=250)
+                for card in select_cards(results):
                     add_card(
                         pokemon_id=pokemon["id"],
-                        card_name=best["card_name"],
-                        set_name=best["set_name"],
-                        rarity=best["rarity"],
-                        image_url=best.get("image_url"),
-                        price=best["price"],
-                        cardmarket_url=best["cardmarket_url"],
+                        card_name=card["card_name"],
+                        set_name=card["set_name"],
+                        rarity=card["rarity"],
+                        image_url=card.get("image_url"),
+                        price=card["price"],
+                        cardmarket_url=card["cardmarket_url"],
                     )
                 time.sleep(1.0)
     finally:

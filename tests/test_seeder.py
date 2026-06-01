@@ -1,4 +1,9 @@
-from seeder import rarity_score, pick_best_card
+from seeder import rarity_score, pick_best_card, is_desirable, select_cards
+
+
+def _card(name, rarity, price, url="https://prices.pokemontcg.io/cardmarket/" ):
+    return {"card_name": name, "set_name": "Set", "rarity": rarity,
+            "price": price, "cardmarket_url": url + name, "image_url": None}
 
 
 def test_rarity_score_order():
@@ -41,3 +46,42 @@ def test_pick_best_skips_cards_without_url():
 
 def test_pick_best_empty():
     assert pick_best_card([]) is None
+
+
+def test_is_desirable_classification():
+    for nice in ["Illustration Rare", "Rare Holo VMAX", "Radiant Rare",
+                 "Rare Shiny", "Double Rare", "Rare Rainbow", "Promo",
+                 "Rare Holo GX", "Ultra Rare"]:
+        assert is_desirable(nice), nice
+    for plain in ["Common", "Uncommon", "Rare", None, ""]:
+        assert not is_desirable(plain), plain
+
+
+def test_select_cards_returns_multiple():
+    results = [
+        _card("VMAX", "Rare Holo VMAX", 30.0),
+        _card("Illus", "Illustration Rare", 40.0),
+        _card("Radiant", "Radiant Rare", 5.0),
+        _card("Plain", "Common", 0.1),
+    ]
+    selected = select_cards(results)
+    names = {c["card_name"] for c in selected}
+    assert names == {"VMAX", "Illus", "Radiant"}  # Common excluded
+
+
+def test_select_cards_dedupes_by_name_and_set():
+    results = [_card("Pikachu", "Illustration Rare", 40.0),
+               _card("Pikachu", "Illustration Rare", 40.0)]
+    assert len(select_cards(results)) == 1
+
+
+def test_select_cards_respects_cap():
+    results = [_card(f"C{i}", "Rare Holo", float(i + 1)) for i in range(30)]
+    assert len(select_cards(results, max_cards=15)) == 15
+
+
+def test_select_cards_fallback_guarantees_one():
+    results = [_card("OnlyPlain", "Rare", 3.0)]
+    selected = select_cards(results)
+    assert len(selected) == 1
+    assert selected[0]["card_name"] == "OnlyPlain"

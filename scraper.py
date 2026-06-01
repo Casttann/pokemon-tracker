@@ -37,18 +37,20 @@ def _extract_price(prices):
     return None
 
 
-def search_cardmarket(pokemon_name: str, max_price: float = MAX_PRICE) -> list:
+def search_cardmarket(pokemon_name: str, max_price: float = MAX_PRICE,
+                      page_size: int = 50) -> list:
     """Search English Pokemon cards by name via the PokemonTCG API.
 
     CardMarket itself blocks scraping (Cloudflare), so prices and metadata
     are sourced from the free PokemonTCG API, which exposes CardMarket prices.
+    A larger page_size (up to 250) covers older promos too, for seeding.
     """
     if not pokemon_name:
         return []
     try:
         resp = _get(API_BASE, params={
             "q": f'name:"{pokemon_name}"',
-            "pageSize": 50,
+            "pageSize": page_size,
             "orderBy": "-set.releaseDate",
         })
         if resp.status_code != 200:
