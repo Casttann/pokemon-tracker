@@ -119,13 +119,18 @@ def _run_seed(app):
     try:
         with app.app_context():
             from database import get_pokemon_list, get_all_cards, add_card
-            existing = {c["pokemon_id"] for c in get_all_cards()}
+            # Dedupe against cards already stored (by name + set), so re-running
+            # the seed tops up missing special cards instead of skipping the
+            # whole Pokemon or creating duplicates.
+            owned = {(c["card_name"], c["set_name"]) for c in get_all_cards()}
             for pokemon in get_pokemon_list():
-                if pokemon["id"] in existing:
-                    continue
                 results = search_cardmarket(pokemon["name"], max_price=MAX_PRICE,
                                             page_size=250)
                 for card in select_cards(results):
+                    key = (card["card_name"], card["set_name"])
+                    if key in owned:
+                        continue
+                    owned.add(key)
                     add_card(
                         pokemon_id=pokemon["id"],
                         card_name=card["card_name"],
