@@ -1,85 +1,82 @@
-import random
-import time
 import requests
-from bs4 import BeautifulSoup
 
 MAX_PRICE = 100.0
 
-HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-}
+API_BASE = "https://api.pokemontcg.io/v2/cards"
+HEADERS = {"Accept": "application/json"}
+
+# Price keys from the PokemonTCG API cardmarket data, in order of preference.
+_PRICE_KEYS = ("trendPrice", "averageSellPrice", "avg7", "avg30")
 
 
-def _parse_price(text):
-    """Parse '45,00 €' or '45.00' into a float."""
-    try:
-        cleaned = text.replace("€", "").replace(",", ".").strip()
-        return float(cleaned)
-    except (ValueError, AttributeError):
+def _extract_price(prices):
+    """Pick the best available CardMarket price from a prices dict."""
+    if not prices:
         return None
-
-
-def _random_delay():
-    time.sleep(random.uniform(1.0, 3.0))
+    for key in _PRICE_KEYS:
+        value = prices.get(key)
+        if isinstance(value, (int, float)) and value > 0:
+            return float(value)
+    return None
 
 
 def search_cardmarket(pokemon_name: str, max_price: float = MAX_PRICE) -> list:
-    """Search CardMarket for English Pokemon cards by name."""
-    url = f"https://www.cardmarket.com/en/Pokemon/Products/Search?searchString={pokemon_name}&language=1"
+    """Search English Pokemon cards by name via the PokemonTCG API.
+
+    CardMarket itself blocks scraping (Cloudflare), so prices and metadata
+    are sourced from the free PokemonTCG API, which exposes CardMarket prices.
+    """
+    if not pokemon_name:
+        return []
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=15)
+        resp = requests.get(
+            API_BASE,
+            params={
+                "q": f'name:"{pokemon_name}"',
+                "pageSize": 50,
+                "orderBy": "-set.releaseDate",
+            },
+            headers=HEADERS,
+            timeout=20,
+        )
         if resp.status_code != 200:
             return []
-        soup = BeautifulSoup(resp.text, "html.parser")
+        cards = resp.json().get("data", [])
         results = []
-        for row in soup.select(".col-selectable"):
-            try:
-                name_tag = row.select_one(".product-list--name, a[href*='Singles']")
-                price_tag = row.select_one(".fw-bold, .price-container span")
-                set_tag = row.select_one(".product-list--expansion, a.expansion")
-                rarity_tag = row.select_one(".col-availability span, .rarity")
-
-                if not name_tag or not price_tag:
-                    continue
-
-                price = _parse_price(price_tag.get_text())
-                if price is None or price > max_price:
-                    continue
-
-                href = name_tag.get("href", "")
-                card_url = f"https://www.cardmarket.com{href}" if href.startswith("/") else href
-
-                results.append({
-                    "card_name": name_tag.get_text(strip=True),
-                    "set_name": set_tag.get_text(strip=True) if set_tag else "",
-                    "rarity": rarity_tag.get_text(strip=True) if rarity_tag else "",
-                    "price": price,
-                    "cardmarket_url": card_url,
-                })
-            except Exception:
+        for card in cards:
+            cardmarket = card.get("cardmarket") or {}
+            price = _extract_price(cardmarket.get("prices"))
+            if price is None or price > max_price:
                 continue
+            results.append({
+                "card_name": card.get("name", ""),
+                "set_name": (card.get("set") or {}).get("name", ""),
+                "rarity": card.get("rarity") or "",
+                "price": price,
+                "cardmarket_url": cardmarket.get("url", ""),
+                "image_url": (card.get("images") or {}).get("small"),
+            })
+        results.sort(key=lambda r: r["price"], reverse=True)
         return results
     except Exception:
         return []
 
 
 def update_price(cardmarket_url: str) -> float | None:
-    """Fetch the current price for a card from its CardMarket URL."""
+    """Fetch the current CardMarket price for a stored card.
+
+    Stored URLs look like https://prices.pokemontcg.io/cardmarket/<card_id>,
+    so the card id is parsed from the URL and re-queried.
+    """
     try:
-        _random_delay()
-        resp = requests.get(cardmarket_url, headers=HEADERS, timeout=15)
+        card_id = cardmarket_url.rstrip("/").split("/")[-1]
+        if not card_id:
+            return None
+        resp = requests.get(f"{API_BASE}/{card_id}", headers=HEADERS, timeout=20)
         if resp.status_code != 200:
             return None
-        soup = BeautifulSoup(resp.text, "html.parser")
-        price_tag = soup.select_one(".info-list-container .fw-bold, .price-container .fw-bold")
-        if not price_tag:
-            return None
-        return _parse_price(price_tag.get_text())
+        data = resp.json().get("data") or {}
+        cardmarket = data.get("cardmarket") or {}
+        return _extract_price(cardmarket.get("prices"))
     except Exception:
         return None

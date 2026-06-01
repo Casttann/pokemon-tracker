@@ -36,8 +36,10 @@ def create_app(testing=False):
     def api_add_card():
         data = request.get_json()
         url = data.get("cardmarket_url", "")
-        if not url.startswith("https://www.cardmarket.com/"):
-            return jsonify({"error": "URL must start with https://www.cardmarket.com/"}), 400
+        allowed_prefixes = ("https://www.cardmarket.com/",
+                            "https://prices.pokemontcg.io/")
+        if not url.startswith(allowed_prefixes):
+            return jsonify({"error": "URL must be a CardMarket or PokemonTCG price URL"}), 400
         price = data.get("price")
         if not isinstance(price, (int, float)) or price <= 0 or price > MAX_PRICE:
             return jsonify({"error": f"Price must be a positive number <= {MAX_PRICE}"}), 400
@@ -76,12 +78,9 @@ def create_app(testing=False):
     @app.route("/api/search", methods=["POST"])
     def api_search():
         from scraper import search_cardmarket
-        from image_lookup import find_card_image
         data = request.get_json()
         pokemon_name = data.get("pokemon_name", "")
         results = search_cardmarket(pokemon_name, max_price=MAX_PRICE)
-        for r in results:
-            r["image_url"] = find_card_image(r["card_name"], r["set_name"])
         return jsonify(results)
 
     @app.route("/api/refresh", methods=["POST"])
