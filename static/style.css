@@ -307,6 +307,25 @@ main {
 .btn-danger { border-color: #7f1d1d; color: #f87171; }
 .btn-danger:hover { border-color: #f87171; }
 
+/* LIGHTBOX */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  cursor: zoom-out;
+}
+.lightbox-img {
+  max-width: 90vw;
+  max-height: 90vh;
+  border-radius: 12px;
+  box-shadow: 0 0 50px rgba(192,132,252,0.4);
+}
+
 /* SPARKLINE */
 .sparkline-wrap { margin: 12px 0; }
 .sparkline-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }

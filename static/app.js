@@ -274,7 +274,7 @@ async function openDetailModal(card) {
     <div class="detail-layout">
       <div>
         ${card.image_url
-          ? `<img class="detail-img" src="${card.image_url}" alt="${card.card_name}">`
+          ? `<img class="detail-img" src="${card.image_url}" alt="${card.card_name}" style="cursor:zoom-in" onclick="openLightbox('${largeImage(card.image_url)}')">`
           : `<div class="detail-img ${typeClass(pokemon?.type_1)}" style="aspect-ratio:2.5/3.5;display:flex;align-items:center;justify-content:center;font-size:60px;border-radius:8px">${typeEmoji(pokemon?.type_1)}</div>`}
       </div>
       <div class="detail-meta">
@@ -302,6 +302,23 @@ async function openDetailModal(card) {
 
 function closeDetailModal(e) {
   if (e.target.id === 'modal-detail') document.getElementById('modal-detail').style.display = 'none';
+}
+
+// Upgrade a stored thumbnail URL to its high-res version for the lightbox.
+function largeImage(url) {
+  if (!url) return url;
+  if (url.includes('images.scrydex.com')) return url.replace(/\/small$/, '/large');
+  if (url.includes('images.pokemontcg.io')) return url.replace(/\.png$/, '_hires.png');
+  return url;
+}
+
+function openLightbox(url) {
+  document.getElementById('lightbox-img').src = url;
+  document.getElementById('lightbox').style.display = 'flex';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').style.display = 'none';
 }
 
 function buildSparkline(history) {
