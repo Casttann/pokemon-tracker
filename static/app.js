@@ -88,23 +88,33 @@ function renderGrid() {
 
     if (activeTab !== 'all' && visibleCards.length === 0) continue;
 
-    const slot = document.createElement('div');
-    slot.className = 'pokemon-slot';
+    const section = document.createElement('section');
+    section.className = 'pokemon-section';
 
     const label = document.createElement('div');
-    label.className = 'slot-label';
-    label.textContent = pokemon.name;
-    slot.appendChild(label);
+    label.className = 'section-label';
+    label.textContent = visibleCards.length
+      ? `${pokemon.name} · ${visibleCards.length}`
+      : pokemon.name;
+    section.appendChild(label);
+
+    const cardsWrap = document.createElement('div');
+    cardsWrap.className = 'section-cards';
 
     if (visibleCards.length === 0) {
-      slot.appendChild(buildEmptySlot(pokemon));
-    } else if (visibleCards.length === 1) {
-      slot.appendChild(buildCardTile(visibleCards[0], pokemon));
+      cardsWrap.appendChild(buildEmptySlot(pokemon));
     } else {
-      slot.appendChild(buildStackedSlot(visibleCards, pokemon));
+      // Show every card as its own tile (fanciest/most expensive first).
+      visibleCards
+        .slice()
+        .sort((a, b) => (b.price_current || 0) - (a.price_current || 0))
+        .forEach(card => cardsWrap.appendChild(buildCardTile(card, pokemon)));
+      // Trailing "+" tile to add more cards for this Pokemon.
+      cardsWrap.appendChild(buildEmptySlot(pokemon));
     }
 
-    grid.appendChild(slot);
+    section.appendChild(cardsWrap);
+    grid.appendChild(section);
   }
 }
 
@@ -138,47 +148,6 @@ function buildCardTile(card, pokemon) {
     </div>`;
   el.onclick = () => openDetailModal(card);
   return el;
-}
-
-function buildStackedSlot(cards, pokemon) {
-  const wrapper = document.createElement('div');
-  wrapper.className = 'card-stack';
-
-  const top = buildCardTile(cards[0], pokemon);
-  // Count badge so it's obvious the slot holds several cards (click to expand).
-  const count = document.createElement('div');
-  count.className = 'count-badge';
-  count.textContent = '🃏 ' + cards.length;
-  top.appendChild(count);
-  wrapper.appendChild(top);
-
-  let expanded = false;
-  const expandedDiv = document.createElement('div');
-  expandedDiv.className = 'expanded-cards';
-  expandedDiv.style.display = 'none';
-  cards.forEach(card => {
-    const item = document.createElement('div');
-    item.className = 'expanded-card';
-    item.innerHTML = `
-      ${card.image_url ? `<img src="${card.image_url}" loading="lazy">` : `<div class="card-placeholder ${typeClass(pokemon.type_1)}" style="width:28px;height:40px;font-size:16px">${typeEmoji(pokemon.type_1)}</div>`}
-      <div class="expanded-card-info">
-        <div>${card.card_name}</div>
-        <div style="color:var(--text-dim);font-size:10px">${card.set_name}</div>
-      </div>
-      <div class="expanded-card-price">${card.price_current != null ? '€' + card.price_current.toFixed(2) : '–'}</div>`;
-    item.onclick = (e) => { e.stopPropagation(); openDetailModal(card); };
-    expandedDiv.appendChild(item);
-  });
-  wrapper.appendChild(expandedDiv);
-
-  top.onclick = (e) => {
-    e.stopPropagation();
-    expanded = !expanded;
-    expandedDiv.style.display = expanded ? 'flex' : 'none';
-    expandedDiv.style.flexDirection = 'column';
-  };
-
-  return wrapper;
 }
 
 function typeClass(type) {

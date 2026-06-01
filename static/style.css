@@ -110,20 +110,28 @@ header {
 
 /* GRID */
 main {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
   padding: 24px;
 }
 
-/* POKEMON SLOT */
-.pokemon-slot { display: flex; flex-direction: column; gap: 8px; }
+/* POKEMON SECTION */
+.pokemon-section { display: flex; flex-direction: column; gap: 10px; }
 
-.slot-label {
-  font-size: 11px;
-  color: var(--text-dim);
-  text-align: center;
+.section-label {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
   letter-spacing: 0.5px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
 }
 
 /* EMPTY SLOT */
@@ -193,38 +201,9 @@ main {
   font-size: 10px;
   font-weight: 600;
 }
-.count-badge {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  background: #1e1b4b;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  border-radius: 10px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  z-index: 2;
-}
-
 .badge-wishlist { background: #3b1f7a; color: var(--accent); }
 .badge-owned { background: #14532d; color: var(--owned); }
 .badge-stale { position: static; background: #78350f; color: #f59e0b; font-size: 9px; }
-
-/* STACK indicator */
-.card-stack { position: relative; }
-.card-stack::after {
-  content: "";
-  position: absolute;
-  top: 4px;
-  left: 4px;
-  right: -4px;
-  bottom: -4px;
-  background: var(--card-bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  z-index: -1;
-}
 
 /* MODAL */
 .modal-overlay {
@@ -321,23 +300,6 @@ main {
 .sparkline-wrap { margin: 12px 0; }
 .sparkline-label { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
 svg.sparkline { width: 100%; height: 50px; }
-
-/* EXPANDED CARDS */
-.expanded-cards { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
-.expanded-card {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  background: var(--empty);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px;
-  cursor: pointer;
-}
-.expanded-card:hover { border-color: var(--accent); }
-.expanded-card img { width: 28px; height: 40px; object-fit: cover; border-radius: 3px; }
-.expanded-card-info { flex: 1; font-size: 11px; }
-.expanded-card-price { font-size: 12px; color: var(--accent); font-weight: 600; }
 
 /* TYPE COLORS for placeholders */
 .type-fire { background: #7f1d1d; }
