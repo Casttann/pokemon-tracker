@@ -1,9 +1,26 @@
+import time
+
 import requests
 
 MAX_PRICE = 100.0
 
 API_BASE = "https://api.pokemontcg.io/v2/cards"
 HEADERS = {"Accept": "application/json"}
+
+# The PokemonTCG API rate-limits unauthenticated bursts with HTTP 429.
+_MAX_RETRIES = 3
+_RETRY_WAIT = 2.0
+
+
+def _get(url, params=None):
+    """GET with simple retry/backoff on rate-limit (429) responses."""
+    for attempt in range(_MAX_RETRIES):
+        resp = requests.get(url, params=params, headers=HEADERS, timeout=20)
+        if resp.status_code == 429 and attempt < _MAX_RETRIES - 1:
+            time.sleep(_RETRY_WAIT * (attempt + 1))
+            continue
+        return resp
+    return resp
 
 # Price keys from the PokemonTCG API cardmarket data, in order of preference.
 _PRICE_KEYS = ("trendPrice", "averageSellPrice", "avg7", "avg30")
@@ -29,16 +46,11 @@ def search_cardmarket(pokemon_name: str, max_price: float = MAX_PRICE) -> list:
     if not pokemon_name:
         return []
     try:
-        resp = requests.get(
-            API_BASE,
-            params={
-                "q": f'name:"{pokemon_name}"',
-                "pageSize": 50,
-                "orderBy": "-set.releaseDate",
-            },
-            headers=HEADERS,
-            timeout=20,
-        )
+        resp = _get(API_BASE, params={
+            "q": f'name:"{pokemon_name}"',
+            "pageSize": 50,
+            "orderBy": "-set.releaseDate",
+        })
         if resp.status_code != 200:
             return []
         cards = resp.json().get("data", [])
@@ -72,7 +84,7 @@ def update_price(cardmarket_url: str) -> float | None:
         card_id = cardmarket_url.rstrip("/").split("/")[-1]
         if not card_id:
             return None
-        resp = requests.get(f"{API_BASE}/{card_id}", headers=HEADERS, timeout=20)
+        resp = _get(f"{API_BASE}/{card_id}")
         if resp.status_code != 200:
             return None
         data = resp.json().get("data") or {}

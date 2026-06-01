@@ -91,12 +91,22 @@ def create_app(testing=False):
         trigger_refresh(app)
         return jsonify({"status": "started"})
 
+    @app.route("/api/seed", methods=["POST"])
+    def api_seed():
+        from seeder import start_seed, is_seeding
+        if is_seeding():
+            return jsonify({"status": "already_running"})
+        start_seed(app)
+        return jsonify({"status": "started"})
+
     @app.route("/api/status")
     def api_status():
         from scheduler import get_last_update, is_updating
+        from seeder import is_seeding
         return jsonify({
             "last_update": get_last_update(),
             "updating": is_updating(),
+            "seeding": is_seeding(),
         })
 
     return app

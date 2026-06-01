@@ -63,7 +63,8 @@ header {
   transition: background 0.2s;
 }
 .btn-refresh:hover { background: var(--accent); }
-.btn-refresh.spinning #refresh-icon { display: inline-block; animation: spin 1s linear infinite; }
+.btn-refresh.spinning #refresh-icon,
+.btn-refresh.spinning #seed-icon { display: inline-block; animation: spin 1s linear infinite; }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 

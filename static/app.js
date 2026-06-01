@@ -37,7 +37,7 @@ async function loadStatus() {
   el.textContent = data.last_update
     ? 'Actualizado: ' + new Date(data.last_update).toLocaleString('es-ES')
     : 'Nunca actualizado';
-  if (data.updating) startPolling();
+  if (data.updating || data.seeding) startPolling();
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────
@@ -347,16 +347,30 @@ async function triggerRefresh() {
   startPolling();
 }
 
+// ── Seed Wishlist ──────────────────────────────────────────────────────────
+async function triggerSeed() {
+  const btn = document.getElementById('btn-seed');
+  btn.classList.add('spinning');
+  await fetch('/api/seed', {method: 'POST'});
+  startPolling();
+}
+
 function startPolling() {
   if (pollInterval) return;
   pollInterval = setInterval(async () => {
     const resp = await fetch('/api/status');
     const data = await resp.json();
     const el = document.getElementById('stat-updated');
-    if (!data.updating) {
+    // While seeding, stream newly added cards into the grid.
+    if (data.seeding) {
+      await loadCards();
+      renderGrid();
+    }
+    if (!data.updating && !data.seeding) {
       clearInterval(pollInterval);
       pollInterval = null;
       document.getElementById('btn-refresh').classList.remove('spinning');
+      document.getElementById('btn-seed').classList.remove('spinning');
       el.textContent = data.last_update
         ? 'Actualizado: ' + new Date(data.last_update).toLocaleString('es-ES')
         : '–';
