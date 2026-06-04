@@ -256,9 +256,10 @@ async function searchCards() {
     return;
   }
 
-  const pokemon = allPokemon.find(p => p.name.toLowerCase() === name.toLowerCase());
-
   for (const r of results) {
+    // Resolve the Pokemon from the card name itself (e.g. "Blaine's Charmander"
+    // -> Charmander), not from the search term, which may not be an exact name.
+    const pokemon = findPokemonForCard(r.card_name, name);
     const item = document.createElement('div');
     item.className = 'result-item';
     item.innerHTML = `
@@ -271,6 +272,18 @@ async function searchCards() {
     item.onclick = () => addCard(r, pokemon);
     resultsEl.appendChild(item);
   }
+}
+
+// Match a card to one of our Pokemon by finding the longest Pokemon name
+// contained in the card name; fall back to an exact match on the search term.
+function findPokemonForCard(cardName, fallbackName) {
+  const cn = (cardName || '').toLowerCase();
+  const contained = allPokemon
+    .filter(p => cn.includes(p.name.toLowerCase()))
+    .sort((a, b) => b.name.length - a.name.length);
+  if (contained.length) return contained[0];
+  const fb = (fallbackName || '').toLowerCase();
+  return allPokemon.find(p => p.name.toLowerCase() === fb);
 }
 
 async function addCard(result, pokemon) {
