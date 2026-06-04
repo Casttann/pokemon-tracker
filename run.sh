@@ -7,9 +7,9 @@ cd "$SCRIPT_DIR"
 # Activate venv
 source venv/bin/activate
 
-# Find free port
-PORT=5000
-for p in $(seq 5000 5010); do
+# Find free port (skip 5000: reserved by macOS AirPlay Receiver)
+PORT=5001
+for p in $(seq 5001 5010); do
   if ! nc -z localhost $p 2>/dev/null; then
     PORT=$p
     break
