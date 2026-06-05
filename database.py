@@ -39,6 +39,17 @@ class PriceHistory(db.Model):
     recorded = db.Column(db.Text, nullable=False)
 
 
+class MonthlyPlan(db.Model):
+    __tablename__ = "monthly_plan"
+    id = db.Column(db.Integer, primary_key=True)
+    year = db.Column(db.Integer, nullable=False)
+    month = db.Column(db.Integer, nullable=False)  # 1-12
+    budget = db.Column(db.Float, nullable=False, default=80.0)
+    plan_note = db.Column(db.Text, nullable=False, default="")
+    spent = db.Column(db.Float, nullable=False, default=0.0)
+    __table_args__ = (db.UniqueConstraint("year", "month", name="uq_year_month"),)
+
+
 def init_db():
     db.create_all()
     if Pokemon.query.count() == 0:
@@ -132,6 +143,35 @@ def get_price_history(card_id):
     rows = PriceHistory.query.filter_by(card_id=card_id)\
                .order_by(PriceHistory.recorded.asc()).all()
     return [{"price": r.price, "recorded": r.recorded} for r in rows]
+
+
+DEFAULT_MONTHLY_BUDGET = 80.0
+
+
+def get_monthly_plans(year):
+    rows = {p.month: p for p in MonthlyPlan.query.filter_by(year=year).all()}
+    result = []
+    for m in range(1, 13):
+        p = rows.get(m)
+        result.append({
+            "year": year,
+            "month": m,
+            "budget": p.budget if p else DEFAULT_MONTHLY_BUDGET,
+            "plan_note": p.plan_note if p else "",
+            "spent": p.spent if p else 0.0,
+        })
+    return result
+
+
+def upsert_monthly_plan(year, month, budget, plan_note, spent):
+    p = MonthlyPlan.query.filter_by(year=year, month=month).first()
+    if not p:
+        p = MonthlyPlan(year=year, month=month)
+        db.session.add(p)
+    p.budget = budget
+    p.plan_note = plan_note
+    p.spent = spent
+    db.session.commit()
 
 
 def get_pokemon_list():

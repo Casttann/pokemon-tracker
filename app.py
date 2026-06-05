@@ -1,7 +1,8 @@
 import os
 from flask import Flask, jsonify, request, render_template
 from database import db, init_db, get_all_cards, get_card_by_id, add_card, \
-    update_card_status, delete_card, get_price_history, get_pokemon_list
+    update_card_status, delete_card, get_price_history, get_pokemon_list, \
+    get_monthly_plans, upsert_monthly_plan
 
 MAX_PRICE = 100.0
 
@@ -98,6 +99,34 @@ def create_app(testing=False):
             return jsonify({"status": "already_running"})
         start_seed(app)
         return jsonify({"status": "started"})
+
+    @app.route("/api/plan", methods=["GET"])
+    def api_get_plan():
+        try:
+            year = int(request.args.get("year", 2026))
+        except (TypeError, ValueError):
+            return jsonify({"error": "year must be an integer"}), 400
+        return jsonify(get_monthly_plans(year))
+
+    @app.route("/api/plan", methods=["POST"])
+    def api_save_plan():
+        data = request.get_json()
+        try:
+            year = int(data["year"])
+            month = int(data["month"])
+        except (KeyError, TypeError, ValueError):
+            return jsonify({"error": "year and month are required integers"}), 400
+        if month < 1 or month > 12:
+            return jsonify({"error": "month must be 1-12"}), 400
+        budget = data.get("budget", 80.0)
+        spent = data.get("spent", 0.0)
+        if not isinstance(budget, (int, float)) or budget < 0:
+            return jsonify({"error": "budget must be a non-negative number"}), 400
+        if not isinstance(spent, (int, float)) or spent < 0:
+            return jsonify({"error": "spent must be a non-negative number"}), 400
+        plan_note = data.get("plan_note", "")
+        upsert_monthly_plan(year, month, float(budget), plan_note, float(spent))
+        return jsonify(get_monthly_plans(year))
 
     @app.route("/api/status")
     def api_status():

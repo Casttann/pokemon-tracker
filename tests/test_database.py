@@ -2,7 +2,8 @@ import os
 import tempfile
 import pytest
 from database import init_db, add_card, get_all_cards, get_card_by_id, \
-    update_card_status, delete_card, save_price_snapshot, get_price_history, db
+    update_card_status, delete_card, save_price_snapshot, get_price_history, db, \
+    get_monthly_plans, upsert_monthly_plan, DEFAULT_MONTHLY_BUDGET
 from app import create_app
 
 @pytest.fixture(autouse=True)
@@ -87,3 +88,29 @@ def test_price_snapshot_written_on_add():
         history = get_price_history(card_id)
         assert len(history) == 1
         assert history[0]["price"] == 25.0
+
+def test_monthly_plans_defaults_to_twelve_months():
+    from app import create_app
+    app = create_app(testing=True)
+    with app.app_context():
+        plans = get_monthly_plans(2026)
+        assert len(plans) == 12
+        assert [p["month"] for p in plans] == list(range(1, 13))
+        assert all(p["budget"] == DEFAULT_MONTHLY_BUDGET for p in plans)
+        assert all(p["spent"] == 0.0 for p in plans)
+        assert all(p["plan_note"] == "" for p in plans)
+
+def test_upsert_monthly_plan_persists_and_updates():
+    from app import create_app
+    app = create_app(testing=True)
+    with app.app_context():
+        upsert_monthly_plan(2026, 6, 75.0, "ETB inglés", 28.0)
+        june = get_monthly_plans(2026)[5]
+        assert june["budget"] == 75.0
+        assert june["plan_note"] == "ETB inglés"
+        assert june["spent"] == 28.0
+        upsert_monthly_plan(2026, 6, 80.0, "ETB inglés v2", 50.0)
+        june = get_monthly_plans(2026)[5]
+        assert june["budget"] == 80.0
+        assert june["spent"] == 50.0
+        assert len(get_monthly_plans(2026)) == 12

@@ -5,7 +5,8 @@
       "name": "pokemon-tracker",
       "runtimeExecutable": "venv/bin/python",
       "runtimeArgs": ["app.py"],
-      "port": 5000
+      "env": { "FLASK_PORT": "5006" },
+      "port": 5006
     }
   ]
 }

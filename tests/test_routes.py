@@ -118,3 +118,28 @@ def test_status_endpoint(client):
     data = json.loads(resp.data)
     assert "updating" in data
     assert "last_update" in data
+
+def test_get_plan_returns_twelve_months(client):
+    resp = client.get("/api/plan?year=2026")
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert len(data) == 12
+
+def test_post_plan_saves_month(client):
+    resp = client.post("/api/plan", json={
+        "year": 2026, "month": 6, "budget": 75.0,
+        "spent": 28.0, "plan_note": "ETB inglés"})
+    assert resp.status_code == 200
+    data = json.loads(resp.data)
+    assert data[5]["budget"] == 75.0
+    assert data[5]["spent"] == 28.0
+    assert data[5]["plan_note"] == "ETB inglés"
+
+def test_post_plan_rejects_bad_month(client):
+    resp = client.post("/api/plan", json={"year": 2026, "month": 13})
+    assert resp.status_code == 400
+
+def test_post_plan_rejects_negative_budget(client):
+    resp = client.post("/api/plan", json={
+        "year": 2026, "month": 1, "budget": -5})
+    assert resp.status_code == 400

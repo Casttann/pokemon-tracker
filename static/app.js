@@ -6,6 +6,8 @@ let activeGen = null;
 let activeSort = 'price-desc';
 let groupByPokemon = true;
 let pollInterval = null;
+let planYear = new Date().getFullYear();
+let planData = [];
 
 const TYPE_EMOJI = {
   fire: '🔥', water: '💧', grass: '🌿', electric: '⚡',
@@ -448,6 +450,76 @@ function startPolling() {
       renderGrid();
     }
   }, 5000);
+}
+
+// ── Monthly Planning ───────────────────────────────────────────────────────
+const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
+async function openPlanModal() {
+  document.getElementById('modal-plan').style.display = 'flex';
+  await loadPlan();
+}
+
+function closePlanModal(event) {
+  if (event && event.target.id !== 'modal-plan') return;
+  document.getElementById('modal-plan').style.display = 'none';
+}
+
+async function changePlanYear(delta) {
+  planYear += delta;
+  await loadPlan();
+}
+
+async function loadPlan() {
+  const resp = await fetch(`/api/plan?year=${planYear}`);
+  planData = await resp.json();
+  renderPlan();
+}
+
+function renderPlan() {
+  document.getElementById('plan-year-label').textContent = planYear;
+  const totalBudget = planData.reduce((s, m) => s + m.budget, 0);
+  const totalSpent = planData.reduce((s, m) => s + m.spent, 0);
+  const remaining = totalBudget - totalSpent;
+  document.getElementById('plan-summary').innerHTML = `
+    <div class="plan-sum-item"><span>Presupuesto anual</span><strong>€${totalBudget.toFixed(2)}</strong></div>
+    <div class="plan-sum-item"><span>Gastado</span><strong>€${totalSpent.toFixed(2)}</strong></div>
+    <div class="plan-sum-item"><span>Disponible</span><strong class="${remaining < 0 ? 'over' : 'ok'}">€${remaining.toFixed(2)}</strong></div>
+  `;
+  const now = new Date();
+  const curMonth = (planYear === now.getFullYear()) ? now.getMonth() + 1 : 0;
+  document.getElementById('plan-months').innerHTML = planData.map(m => {
+    const pct = m.budget > 0 ? Math.min(100, (m.spent / m.budget) * 100) : 0;
+    const over = m.spent > m.budget;
+    return `
+    <div class="plan-month ${m.month === curMonth ? 'current' : ''}">
+      <div class="plan-month-head">
+        <span class="plan-month-name">${MONTH_NAMES[m.month - 1]}</span>
+        <span class="plan-month-bar"><span class="plan-month-fill ${over ? 'over' : ''}" style="width:${pct}%"></span></span>
+      </div>
+      <div class="plan-month-fields">
+        <label>Presupuesto €<input type="number" min="0" step="1" value="${m.budget}" data-m="${m.month}" data-f="budget"></label>
+        <label>Gastado €<input type="number" min="0" step="0.01" value="${m.spent}" data-m="${m.month}" data-f="spent"></label>
+      </div>
+      <textarea class="plan-note" placeholder="¿Qué quiero comprar este mes?" data-m="${m.month}" data-f="plan_note">${m.plan_note || ''}</textarea>
+      <button class="btn-primary plan-save-btn" onclick="savePlanMonth(${m.month})">Guardar</button>
+    </div>`;
+  }).join('');
+}
+
+async function savePlanMonth(month) {
+  const get = (f) => document.querySelector(`#plan-months [data-m="${month}"][data-f="${f}"]`);
+  const budget = parseFloat(get('budget').value) || 0;
+  const spent = parseFloat(get('spent').value) || 0;
+  const plan_note = get('plan_note').value;
+  const resp = await fetch('/api/plan', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({year: planYear, month, budget, spent, plan_note})
+  });
+  planData = await resp.json();
+  renderPlan();
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────

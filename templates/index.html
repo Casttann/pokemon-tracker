@@ -16,6 +16,9 @@
       <span class="stat">Colección: <span class="stat-value" id="stat-owned">€0</span></span>
       <span class="stat last-update" id="stat-updated">–</span>
     </div>
+    <button class="btn-refresh" id="btn-plan" onclick="openPlanModal()">
+      <span>📅</span> Planning
+    </button>
     <button class="btn-refresh" id="btn-seed" onclick="triggerSeed()">
       <span id="seed-icon">✨</span> Rellenar wishlist
     </button>
@@ -76,6 +79,22 @@
   <div class="modal-overlay" id="modal-detail" style="display:none" onclick="closeDetailModal(event)">
     <div class="modal modal-detail-inner">
       <div id="detail-content"></div>
+    </div>
+  </div>
+
+  <!-- MONTHLY PLAN MODAL -->
+  <div class="modal-overlay" id="modal-plan" style="display:none" onclick="closePlanModal(event)">
+    <div class="modal modal-plan-inner">
+      <div class="plan-header">
+        <h2>📅 Planning anual</h2>
+        <div class="plan-year-nav">
+          <button class="btn-secondary plan-year-btn" onclick="changePlanYear(-1)">‹</button>
+          <span id="plan-year-label">2026</span>
+          <button class="btn-secondary plan-year-btn" onclick="changePlanYear(1)">›</button>
+        </div>
+      </div>
+      <div class="plan-summary" id="plan-summary"></div>
+      <div id="plan-months"></div>
     </div>
   </div>
 
