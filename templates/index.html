@@ -16,6 +16,9 @@
       <span class="stat">Colección: <span class="stat-value" id="stat-owned">€0</span></span>
       <span class="stat last-update" id="stat-updated">–</span>
     </div>
+    <button class="btn-refresh" id="btn-dashboard" onclick="openDashboard()">
+      <span>📊</span> Dashboard
+    </button>
     <button class="btn-refresh" id="btn-plan" onclick="openPlanModal()">
       <span>📅</span> Planning
     </button>
@@ -94,7 +97,37 @@
         </div>
       </div>
       <div class="plan-summary" id="plan-summary"></div>
+      <div class="plan-advice" id="plan-advice"></div>
       <div id="plan-months"></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD MODAL -->
+  <div class="modal-overlay" id="modal-dashboard" style="display:none" onclick="closeDashboard(event)">
+    <div class="modal modal-dashboard-inner">
+      <div class="dash-header">
+        <h2>📊 Dashboard de inversión</h2>
+        <div class="dash-export">
+          <a class="btn-secondary" href="/api/export/xlsx">⬇ Excel</a>
+          <a class="btn-secondary" href="/api/export/pdf">⬇ PDF</a>
+        </div>
+      </div>
+      <div class="dash-kpis" id="dash-kpis"></div>
+      <div class="dash-charts">
+        <div class="dash-chart-box dash-chart-wide">
+          <div class="dash-chart-title">Valor de la colección en el tiempo</div>
+          <canvas id="chart-value"></canvas>
+        </div>
+        <div class="dash-chart-box">
+          <div class="dash-chart-title">Valor por generación</div>
+          <canvas id="chart-gen"></canvas>
+        </div>
+        <div class="dash-chart-box">
+          <div class="dash-chart-title">Cartas por rareza</div>
+          <canvas id="chart-rarity"></canvas>
+        </div>
+      </div>
+      <div class="dash-movers" id="dash-movers"></div>
     </div>
   </div>
 
@@ -103,6 +136,7 @@
     <img id="lightbox-img" class="lightbox-img" src="" alt="">
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>

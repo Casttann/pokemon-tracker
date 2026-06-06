@@ -1,5 +1,6 @@
+import io
 import os
-from flask import Flask, jsonify, request, render_template
+from flask import Flask, jsonify, request, render_template, send_file
 from database import db, init_db, get_all_cards, get_card_by_id, add_card, \
     update_card_status, delete_card, get_price_history, get_pokemon_list, \
     get_monthly_plans, upsert_monthly_plan
@@ -127,6 +128,33 @@ def create_app(testing=False):
         plan_note = data.get("plan_note", "")
         upsert_monthly_plan(year, month, float(budget), plan_note, float(spent))
         return jsonify(get_monthly_plans(year))
+
+    @app.route("/api/stats")
+    def api_stats():
+        from stats import get_dashboard_stats
+        return jsonify(get_dashboard_stats())
+
+    @app.route("/api/export/xlsx")
+    def api_export_xlsx():
+        from exporters import build_xlsx
+        data = build_xlsx(get_all_cards())
+        return send_file(
+            io.BytesIO(data),
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name="pokedex_tracker.xlsx",
+        )
+
+    @app.route("/api/export/pdf")
+    def api_export_pdf():
+        from exporters import build_pdf
+        data = build_pdf(get_all_cards())
+        return send_file(
+            io.BytesIO(data),
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name="pokedex_tracker.pdf",
+        )
 
     @app.route("/api/status")
     def api_status():

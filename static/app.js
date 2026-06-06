@@ -456,6 +456,51 @@ function startPolling() {
 const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+// Guía de precios de referencia (€, Todohits + Cardmarket, jun 2026).
+// Editable a mano si cambian los precios del mercado.
+const PRICE_GUIDE = {
+  sobre: 6.5,        // sobre suelto Chaos Rising (Todohits)
+  blister: 22,       // blíster 3 sobres + promo (te dio el Charmeleon)
+  bundle: 40,        // bundle ~6 sobres
+  etb_es: 45,        // ETB español (más barata, menos revalorización)
+  etb_en: 85,        // ETB inglés (mantiene/sube valor → tu objetivo)
+  box: 200,          // caja 36 sobres
+};
+
+// Devuelve un consejo de compra según el dinero disponible ese mes.
+// `etbFund` = ahorro acumulado disponible hacia una ETB inglesa.
+function buyAdvice(available, etbFund) {
+  const g = PRICE_GUIDE;
+  if (available <= 0) {
+    return 'Presupuesto agotado. Mejor ahorrar hacia la ETB inglesa (~€' + g.etb_en + ').';
+  }
+  if (available < g.sobre) {
+    return 'Casi sin margen: guarda lo que queda hacia la ETB inglesa.';
+  }
+  if (available >= g.etb_en) {
+    return '🎯 Te llega para 1 ETB inglesa (~€' + g.etb_en + ') — la opción que mantiene/sube valor. '
+      + 'Sobrante: ' + Math.floor((available - g.etb_en) / g.sobre) + ' sobre(s) suelto(s).';
+  }
+  // No llega a ETB inglesa este mes: ¿llega sumando ahorro?
+  if (etbFund != null && etbFund + available >= g.etb_en) {
+    return '💰 Con el ahorro acumulado (€' + etbFund.toFixed(0) + ') + este mes llegas a la ETB inglesa (~€'
+      + g.etb_en + '). Recomendado: AHORRAR este mes y comprarla.';
+  }
+  if (available >= g.bundle) {
+    const n = Math.floor(available / g.blister);
+    return 'Opciones: ' + n + ' blíster(s) de 3 sobres (€' + g.blister + ' c/u, mejor relación) '
+      + 'o un bundle (~€' + g.bundle + '). O guarda hacia la ETB inglesa (~€' + g.etb_en + ').';
+  }
+  if (available >= g.blister) {
+    const sobres = Math.floor((available - g.blister) / g.sobre);
+    return '👍 1 blíster de 3 sobres + promo (€' + g.blister + ')'
+      + (sobres > 0 ? ' y ' + sobres + ' sobre(s) suelto(s)' : '')
+      + '. O ahorra hacia la ETB inglesa.';
+  }
+  const n = Math.floor(available / g.sobre);
+  return n + ' sobre(s) suelto(s) (~€' + g.sobre + ' c/u en Todohits). O acumula hacia la ETB inglesa.';
+}
+
 async function openPlanModal() {
   document.getElementById('modal-plan').style.display = 'flex';
   await loadPlan();
@@ -482,16 +527,35 @@ function renderPlan() {
   const totalBudget = planData.reduce((s, m) => s + m.budget, 0);
   const totalSpent = planData.reduce((s, m) => s + m.spent, 0);
   const remaining = totalBudget - totalSpent;
+  const now = new Date();
+  const curMonth = (planYear === now.getFullYear()) ? now.getMonth() + 1 : 0;
+
+  // Fondo ETB: ahorro no gastado de meses ya pasados/en curso del año.
+  const etbFund = planData
+    .filter(m => curMonth === 0 || m.month <= curMonth)
+    .reduce((s, m) => s + Math.max(0, m.budget - m.spent), 0);
+
   document.getElementById('plan-summary').innerHTML = `
     <div class="plan-sum-item"><span>Presupuesto anual</span><strong>€${totalBudget.toFixed(2)}</strong></div>
     <div class="plan-sum-item"><span>Gastado</span><strong>€${totalSpent.toFixed(2)}</strong></div>
     <div class="plan-sum-item"><span>Disponible</span><strong class="${remaining < 0 ? 'over' : 'ok'}">€${remaining.toFixed(2)}</strong></div>
   `;
-  const now = new Date();
-  const curMonth = (planYear === now.getFullYear()) ? now.getMonth() + 1 : 0;
+
+  // Recomendación destacada para el PRÓXIMO mes.
+  const nextMonth = (curMonth >= 1 && curMonth <= 11) ? planData[curMonth] : null;
+  if (nextMonth) {
+    const avail = nextMonth.budget - nextMonth.spent;
+    document.getElementById('plan-advice').innerHTML = `
+      <div class="plan-advice-label">💡 Próximo mes · ${MONTH_NAMES[nextMonth.month - 1]} (disponible €${avail.toFixed(0)})</div>
+      <div class="plan-advice-text">${buyAdvice(avail, etbFund)}</div>`;
+  } else {
+    document.getElementById('plan-advice').innerHTML = '';
+  }
+
   document.getElementById('plan-months').innerHTML = planData.map(m => {
     const pct = m.budget > 0 ? Math.min(100, (m.spent / m.budget) * 100) : 0;
     const over = m.spent > m.budget;
+    const avail = m.budget - m.spent;
     return `
     <div class="plan-month ${m.month === curMonth ? 'current' : ''}">
       <div class="plan-month-head">
@@ -502,6 +566,7 @@ function renderPlan() {
         <label>Presupuesto €<input type="number" min="0" step="1" value="${m.budget}" data-m="${m.month}" data-f="budget"></label>
         <label>Gastado €<input type="number" min="0" step="0.01" value="${m.spent}" data-m="${m.month}" data-f="spent"></label>
       </div>
+      <div class="plan-month-advice">💡 ${buyAdvice(avail, null)}</div>
       <textarea class="plan-note" placeholder="¿Qué quiero comprar este mes?" data-m="${m.month}" data-f="plan_note">${m.plan_note || ''}</textarea>
       <button class="btn-primary plan-save-btn" onclick="savePlanMonth(${m.month})">Guardar</button>
     </div>`;
@@ -520,6 +585,106 @@ async function savePlanMonth(month) {
   });
   planData = await resp.json();
   renderPlan();
+}
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+let dashCharts = [];
+
+const GEN_NAMES = {
+  0: 'Special', 1: 'Gen 1', 2: 'Gen 2', 3: 'Gen 3', 4: 'Gen 4',
+  5: 'Gen 5', 6: 'Gen 6', 7: 'Gen 7', 8: 'Gen 8', 9: 'Gen 9'
+};
+
+async function openDashboard() {
+  document.getElementById('modal-dashboard').style.display = 'flex';
+  const resp = await fetch('/api/stats');
+  const stats = await resp.json();
+  renderDashboard(stats);
+}
+
+function closeDashboard(event) {
+  if (event && event.target.id !== 'modal-dashboard') return;
+  document.getElementById('modal-dashboard').style.display = 'none';
+  dashCharts.forEach(c => c.destroy());
+  dashCharts = [];
+}
+
+function renderDashboard(stats) {
+  const t = stats.totals;
+  document.getElementById('dash-kpis').innerHTML = `
+    <div class="kpi"><div class="kpi-value">€${t.owned_value.toFixed(2)}</div><div class="kpi-label">Valor colección</div></div>
+    <div class="kpi"><div class="kpi-value">${t.owned_count}</div><div class="kpi-label">Cartas en propiedad</div></div>
+    <div class="kpi"><div class="kpi-value">€${t.wishlist_value.toFixed(2)}</div><div class="kpi-label">Valor wishlist</div></div>
+    <div class="kpi"><div class="kpi-value">${t.wishlist_count}</div><div class="kpi-label">Cartas deseadas</div></div>`;
+
+  dashCharts.forEach(c => c.destroy());
+  dashCharts = [];
+
+  const purple = '#7c3aed', light = '#c084fc';
+  const tick = '#a99fc7', grid = 'rgba(255,255,255,0.06)';
+  const axes = {
+    x: { ticks: { color: tick }, grid: { color: grid } },
+    y: { ticks: { color: tick }, grid: { color: grid }, beginAtZero: true }
+  };
+
+  // Valor en el tiempo
+  const vot = stats.value_over_time;
+  dashCharts.push(new Chart(document.getElementById('chart-value'), {
+    type: 'line',
+    data: {
+      labels: vot.map(d => d.date),
+      datasets: [{
+        data: vot.map(d => d.value),
+        borderColor: purple, backgroundColor: 'rgba(124,58,237,0.15)',
+        fill: true, tension: 0.25, pointRadius: 2, pointBackgroundColor: light
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } }, scales: axes }
+  }));
+
+  // Valor por generación
+  const gen = stats.by_generation;
+  dashCharts.push(new Chart(document.getElementById('chart-gen'), {
+    type: 'bar',
+    data: {
+      labels: gen.map(g => GEN_NAMES[g.generation] || ('Gen ' + g.generation)),
+      datasets: [{ data: gen.map(g => g.value), backgroundColor: purple }]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } }, scales: axes }
+  }));
+
+  // Cartas por rareza
+  const rar = stats.by_rarity;
+  const palette = ['#7c3aed', '#c084fc', '#a855f7', '#9333ea', '#d8b4fe',
+    '#6d28d9', '#8b5cf6', '#e9d5ff'];
+  dashCharts.push(new Chart(document.getElementById('chart-rarity'), {
+    type: 'doughnut',
+    data: {
+      labels: rar.map(r => r.rarity),
+      datasets: [{ data: rar.map(r => r.count),
+        backgroundColor: rar.map((_, i) => palette[i % palette.length]) }]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { color: tick, font: { size: 10 } } } } }
+  }));
+
+  // Top movers
+  const movers = stats.top_movers;
+  document.getElementById('dash-movers').innerHTML = movers.length ? `
+    <div class="dash-chart-title">Mayores movimientos de precio</div>
+    <table class="movers-table">
+      <thead><tr><th>Carta</th><th>Set</th><th>Inicial</th><th>Actual</th><th>Cambio</th></tr></thead>
+      <tbody>${movers.map(m => `
+        <tr>
+          <td>${m.card_name}</td>
+          <td>${m.set_name}</td>
+          <td>€${m.first_price.toFixed(2)}</td>
+          <td>€${m.latest_price.toFixed(2)}</td>
+          <td class="${m.change_pct >= 0 ? 'mover-up' : 'mover-down'}">${m.change_pct >= 0 ? '▲' : '▼'} ${Math.abs(m.change_pct).toFixed(1)}%</td>
+        </tr>`).join('')}</tbody>
+    </table>` : '<div class="dash-chart-title">Sin suficiente histórico para calcular movimientos.</div>';
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────
