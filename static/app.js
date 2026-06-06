@@ -211,17 +211,23 @@ function cardsForPokemonInTab(pokemonId) {
   });
 }
 
-// Carta representativa de un hueco: preferimos las owned, y dentro la más cara.
-function pickAlbumCard(cards) {
-  const owned = cards.filter(c => c.status === 'owned');
-  const pool = owned.length ? owned : cards;
-  if (!pool.length) return null;
-  return pool.slice().sort((a, b) => (b.price_current || 0) - (a.price_current || 0))[0];
+// Hasta 3 cartas por Pokémon (una fila del álbum): primero las que tengo
+// en la colección, luego por precio descendente.
+const ALBUM_CARDS_PER_POKEMON = 3;
+
+function albumCardsFor(pokemonId) {
+  const cards = cardsForPokemonInTab(pokemonId).slice().sort((a, b) => {
+    const ao = a.status === 'owned' ? 0 : 1;
+    const bo = b.status === 'owned' ? 0 : 1;
+    if (ao !== bo) return ao - bo;
+    return (b.price_current || 0) - (a.price_current || 0);
+  });
+  return cards.slice(0, ALBUM_CARDS_PER_POKEMON);
 }
 
 function renderAlbum(grid, filteredPokemon, pokemonById) {
-  // Una página = una generación (orden Pokédex). El álbum muestra
-  // dos páginas a la vez (izquierda/derecha), como un libro real.
+  // Cada fila = un Pokémon (hasta 3 cartas). Cada página = 3 Pokémon (3×3 fijo).
+  // Las generaciones se parten en páginas de 3 Pokémon, sin agrandar la página.
   const gens = [];
   const seen = new Set();
   for (const p of filteredPokemon) {
@@ -229,10 +235,14 @@ function renderAlbum(grid, filteredPokemon, pokemonById) {
   }
   gens.sort((a, b) => (a === 0 ? 99 : a) - (b === 0 ? 99 : b));
 
-  const pages = gens.map(gen => ({
-    gen,
-    members: filteredPokemon.filter(p => p.generation === gen),
-  }));
+  // Páginas: trozos de 3 Pokémon dentro de cada generación.
+  const pages = [];
+  for (const gen of gens) {
+    const members = filteredPokemon.filter(p => p.generation === gen);
+    for (let i = 0; i < members.length; i += 3) {
+      pages.push({ gen, pokes: members.slice(i, i + 3) });
+    }
+  }
 
   const totalSpreads = Math.max(1, Math.ceil(pages.length / 2));
   albumSpread = Math.min(Math.max(0, albumSpread), totalSpreads - 1);
@@ -251,11 +261,9 @@ function renderAlbum(grid, filteredPokemon, pokemonById) {
 
   const spread = document.createElement('div');
   spread.className = 'album-spread';
-  if (left) spread.appendChild(buildAlbumPage(left));
-  // Página derecha vacía si el número de generaciones es impar.
-  spread.appendChild(right ? buildAlbumPage(right)
-    : Object.assign(document.createElement('section'),
-        { className: 'album-page album-page-blank' }));
+  spread.appendChild(left ? buildAlbumPage(left) : blankAlbumPage());
+  // Página derecha vacía si el número de páginas es impar.
+  spread.appendChild(right ? buildAlbumPage(right) : blankAlbumPage());
 
   const next = document.createElement('button');
   next.className = 'album-arrow';
@@ -274,51 +282,58 @@ function renderAlbum(grid, filteredPokemon, pokemonById) {
   grid.appendChild(info);
 }
 
+function blankAlbumPage() {
+  return Object.assign(document.createElement('section'),
+    { className: 'album-page album-page-blank' });
+}
+
 function changeAlbumPage(delta) {
   albumSpread += delta;
   renderGrid();
 }
 
 function buildAlbumPage(page) {
-  const { gen, members } = page;
+  const { gen, pokes } = page;
   const section = document.createElement('section');
   section.className = 'album-page';
 
-  const ownedInPage = members.reduce((n, p) =>
-    n + (allCards.some(c => c.pokemon_id === p.id && c.status === 'owned') ? 1 : 0), 0);
+  const ownedCards = pokes.reduce((n, p) =>
+    n + albumCardsFor(p.id).filter(c => c.status === 'owned').length, 0);
+  const shownCards = pokes.reduce((n, p) => n + albumCardsFor(p.id).length, 0);
 
   const head = document.createElement('div');
   head.className = 'album-page-head';
+  const names = pokes.map(p => p.name).join(' · ');
   head.innerHTML = `<span class="album-page-title">${ALBUM_GEN_NAMES[gen] || ('Gen ' + gen)}</span>
-    <span class="album-page-count">${ownedInPage}/${members.length}</span>`;
+    <span class="album-page-sub">${names}</span>
+    <span class="album-page-count">${ownedCards}/${shownCards} ✅</span>`;
   section.appendChild(head);
 
   const sleeve = document.createElement('div');
   sleeve.className = 'album-sleeve';
-  members.forEach(p => sleeve.appendChild(buildAlbumSlot(p)));
+  // Una fila por Pokémon (3 huecos); rellenamos a 3 filas para mantener 3×3.
+  for (let r = 0; r < 3; r++) {
+    const poke = pokes[r];
+    if (!poke) {
+      for (let i = 0; i < 3; i++) sleeve.appendChild(buildAlbumFiller());
+      continue;
+    }
+    const cards = albumCardsFor(poke.id);
+    for (let i = 0; i < 3; i++) {
+      sleeve.appendChild(cards[i]
+        ? buildAlbumCardSlot(cards[i], poke)
+        : buildAlbumEmptySlot(poke));
+    }
+  }
   section.appendChild(sleeve);
   return section;
 }
 
-function buildAlbumSlot(pokemon) {
-  const cards = cardsForPokemonInTab(pokemon.id);
-  const card = pickAlbumCard(cards);
-  const slot = document.createElement('div');
-
-  if (!card) {
-    slot.className = 'album-slot empty';
-    slot.innerHTML = `
-      <div class="album-slot-ph ${typeClass(pokemon.type_1)}">${typeEmoji(pokemon.type_1)}</div>
-      <div class="album-slot-name">${pokemon.name}</div>`;
-    slot.onclick = () => openAddModal(pokemon.name);
-    return slot;
-  }
-
+// Hueco con carta. Si no es de la colección, se muestra "bloqueado".
+function buildAlbumCardSlot(card, pokemon) {
   const owned = card.status === 'owned';
-  // Las que no tengo en la colección se muestran "bloqueadas":
-  // oscurecidas, pero la carta sigue siendo visible y clicable.
+  const slot = document.createElement('div');
   slot.className = `album-slot ${owned ? 'owned' : 'wish locked'}`;
-  const extra = cards.length > 1 ? `<span class="album-slot-extra">+${cards.length - 1}</span>` : '';
   slot.innerHTML = `
     <div class="album-slot-img">
       ${card.image_url
@@ -326,14 +341,30 @@ function buildAlbumSlot(pokemon) {
         : `<div class="album-slot-ph ${typeClass(pokemon.type_1)}">${typeEmoji(pokemon.type_1)}</div>`}
       ${owned ? '' : '<span class="album-slot-lock">🔒</span>'}
       <span class="album-slot-badge">${owned ? '✅' : '💜'}</span>
-      ${extra}
     </div>
-    <div class="album-slot-name">${pokemon.name}</div>
+    <div class="album-slot-name">${card.card_name}</div>
     <div class="album-slot-price ${card.price_current == null ? 'stale' : ''}">
       ${card.price_current != null ? '€' + card.price_current.toFixed(2) : '–'}
     </div>`;
   slot.onclick = () => openDetailModal(card);
   return slot;
+}
+
+// Hueco vacío de un Pokémon con menos de 3 cartas: invita a añadir una.
+function buildAlbumEmptySlot(pokemon) {
+  const slot = document.createElement('div');
+  slot.className = 'album-slot empty';
+  slot.innerHTML = `
+    <div class="album-slot-ph ${typeClass(pokemon.type_1)}">${typeEmoji(pokemon.type_1)}</div>
+    <div class="album-slot-name">${pokemon.name}</div>`;
+  slot.onclick = () => openAddModal(pokemon.name);
+  return slot;
+}
+
+// Hueco de relleno para completar el 3×3 cuando la página tiene <3 Pokémon.
+function buildAlbumFiller() {
+  return Object.assign(document.createElement('div'),
+    { className: 'album-slot filler' });
 }
 
 function buildEmptySlot(pokemon) {

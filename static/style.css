@@ -552,19 +552,38 @@ main.album-mode {
 .album-page-head {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
+  gap: 8px;
   margin-bottom: 14px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
-.album-page-title { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; }
-.album-page-count { font-size: 13px; color: var(--text-dim); font-weight: 600; }
+.album-page-title { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: 0.5px; flex: 0 0 auto; }
+.album-page-sub {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.album-page-count { font-size: 13px; color: var(--text-dim); font-weight: 600; flex: 0 0 auto; }
 
 .album-sleeve {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
   gap: 12px;
 }
+
+/* Hueco de relleno para cuadrar el 3×3 (sin Pokémon): invisible */
+.album-slot.filler {
+  border: 1px dashed #15152c;
+  background: transparent;
+  cursor: default;
+  pointer-events: none;
+}
+.album-slot.filler:hover { transform: none; border-color: #15152c; }
 
 .album-slot {
   display: flex;
