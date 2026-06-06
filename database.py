@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from sqlalchemy import inspect, text
 from flask_sqlalchemy import SQLAlchemy
 from pokemon_data import POKEMON_LIST
 
@@ -27,6 +28,7 @@ class Card(db.Model):
     price_updated = db.Column(db.Text, nullable=True)
     status = db.Column(db.Text, nullable=False, default="wishlist")
     cardmarket_url = db.Column(db.Text, nullable=False)
+    album_order = db.Column(db.Integer, nullable=True)
     history = db.relationship("PriceHistory", backref="card", lazy=True,
                                cascade="all, delete-orphan")
 
@@ -52,6 +54,7 @@ class MonthlyPlan(db.Model):
 
 def init_db():
     db.create_all()
+    _migrate_album_order()
     if Pokemon.query.count() == 0:
         for p in POKEMON_LIST:
             db.session.add(Pokemon(
@@ -60,6 +63,15 @@ def init_db():
                 type_1=p["type_1"],
                 type_2=p.get("type_2"),
             ))
+        db.session.commit()
+
+
+def _migrate_album_order():
+    # Añade la columna album_order a bases de datos creadas antes de esta feature.
+    insp = inspect(db.engine)
+    cols = [c["name"] for c in insp.get_columns("cards")]
+    if "album_order" not in cols:
+        db.session.execute(text("ALTER TABLE cards ADD COLUMN album_order INTEGER"))
         db.session.commit()
 
 
@@ -78,6 +90,7 @@ def _card_to_dict(card):
         "price_updated": card.price_updated,
         "status": card.status,
         "cardmarket_url": card.cardmarket_url,
+        "album_order": card.album_order,
     }
 
 
@@ -91,6 +104,25 @@ def get_all_cards(status=None):
 def get_card_by_id(card_id):
     card = db.session.get(Card, card_id)
     return _card_to_dict(card) if card else None
+
+
+def get_album_cards():
+    """Cartas colocadas en el álbum, en su orden manual."""
+    cards = Card.query.filter(Card.album_order.isnot(None))\
+        .order_by(Card.album_order.asc()).all()
+    return [_card_to_dict(c) for c in cards]
+
+
+def set_album_order(card_ids):
+    """Reescribe el álbum: las cartas en `card_ids` reciben su posición (0..n),
+    el resto sale del álbum (album_order = NULL)."""
+    Card.query.update({Card.album_order: None})
+    for i, cid in enumerate(card_ids):
+        card = db.session.get(Card, cid)
+        if card:
+            card.album_order = i
+    db.session.commit()
+    return get_album_cards()
 
 
 def add_card(pokemon_id, card_name, set_name, rarity, image_url,

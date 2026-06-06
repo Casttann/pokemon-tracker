@@ -137,6 +137,21 @@
     <img id="lightbox-img" class="lightbox-img" src="" alt="">
   </div>
 
+  <!-- ALBUM CARD PICKER -->
+  <div class="modal-overlay" id="modal-picker" style="display:none" onclick="closeAlbumPicker(event)">
+    <div class="modal modal-picker-inner">
+      <div class="modal-head">
+        <h3 id="picker-title">Elegir carta</h3>
+        <button class="modal-close" onclick="closeAlbumPicker()">✕</button>
+      </div>
+      <div class="modal-search">
+        <input class="modal-input" id="picker-search" placeholder="Buscar Pokemon..."
+               oninput="renderAlbumPicker(this.value)">
+      </div>
+      <div id="picker-results" class="picker-results"></div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="/static/app.js"></script>
 </body>

@@ -3,7 +3,7 @@ import os
 from flask import Flask, jsonify, request, render_template, send_file
 from database import db, init_db, get_all_cards, get_card_by_id, add_card, \
     update_card_status, delete_card, get_price_history, get_pokemon_list, \
-    get_monthly_plans, upsert_monthly_plan
+    get_monthly_plans, upsert_monthly_plan, get_album_cards, set_album_order
 
 MAX_PRICE = 100.0
 
@@ -128,6 +128,18 @@ def create_app(testing=False):
         plan_note = data.get("plan_note", "")
         upsert_monthly_plan(year, month, float(budget), plan_note, float(spent))
         return jsonify(get_monthly_plans(year))
+
+    @app.route("/api/album", methods=["GET"])
+    def api_get_album():
+        return jsonify(get_album_cards())
+
+    @app.route("/api/album", methods=["PUT"])
+    def api_set_album():
+        data = request.get_json()
+        order = data.get("order")
+        if not isinstance(order, list) or not all(isinstance(i, int) for i in order):
+            return jsonify({"error": "order must be a list of card ids"}), 400
+        return jsonify(set_album_order(order))
 
     @app.route("/api/stats")
     def api_stats():

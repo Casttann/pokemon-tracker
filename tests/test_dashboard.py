@@ -95,3 +95,48 @@ def test_export_pdf(app, client):
     assert resp.status_code == 200
     assert resp.headers["Content-Type"] == "application/pdf"
     assert resp.data[:4] == b"%PDF"
+
+
+def _add(app, **kw):
+    with app.app_context():
+        return add_card(
+            pokemon_id=kw.get("pokemon_id", 1),
+            card_name=kw.get("card_name", "Card"),
+            set_name="Set", rarity="Rare", image_url=None,
+            price=kw.get("price", 5.0),
+            cardmarket_url="https://www.cardmarket.com/test",
+        )
+
+
+def test_album_empty_by_default(client):
+    resp = client.get("/api/album")
+    assert resp.status_code == 200
+    assert json.loads(resp.data) == []
+
+
+def test_album_set_and_get_order(app, client):
+    a = _add(app, card_name="A")
+    b = _add(app, card_name="B")
+    c = _add(app, card_name="C")
+    resp = client.put("/api/album", json={"order": [c, a, b]})
+    assert resp.status_code == 200
+    order = [card["id"] for card in json.loads(resp.data)]
+    assert order == [c, a, b]
+    # persistido y reflejado en /api/album
+    again = [card["id"] for card in json.loads(client.get("/api/album").data)]
+    assert again == [c, a, b]
+
+
+def test_album_reorder_drops_missing(app, client):
+    a = _add(app, card_name="A")
+    b = _add(app, card_name="B")
+    client.put("/api/album", json={"order": [a, b]})
+    # Guardar solo b: a sale del álbum
+    resp = client.put("/api/album", json={"order": [b]})
+    order = [card["id"] for card in json.loads(resp.data)]
+    assert order == [b]
+
+
+def test_album_rejects_bad_payload(client):
+    assert client.put("/api/album", json={"order": "nope"}).status_code == 400
+    assert client.put("/api/album", json={"order": ["x"]}).status_code == 400
