@@ -4,7 +4,8 @@ let allPokemon = [];
 let activeTab = 'all';
 let activeGen = null;
 let activeSort = 'price-desc';
-let groupByPokemon = true;
+let viewMode = 'pokemon'; // 'pokemon' | 'global' | 'album'
+let albumSpread = 0; // índice del par de páginas visible en la vista álbum
 let pollInterval = null;
 let planYear = new Date().getFullYear();
 let planData = [];
@@ -66,6 +67,7 @@ function setGen(btn, gen) {
   document.querySelectorAll('.gen-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   activeGen = gen;
+  albumSpread = 0;
   renderGrid();
 }
 
@@ -74,10 +76,11 @@ function setSort(value) {
   renderGrid();
 }
 
-function setGroupBy(btn, grouped) {
+function setView(btn, mode) {
   document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  groupByPokemon = grouped;
+  viewMode = mode;
+  albumSpread = 0;
   renderGrid();
 }
 
@@ -115,6 +118,7 @@ function renderGrid() {
   updateStats();
   const search = document.getElementById('search-input').value.toLowerCase();
   const grid = document.getElementById('grid');
+  grid.className = viewMode === 'album' ? 'album-mode' : '';
   grid.innerHTML = '';
 
   const pokemonById = {};
@@ -132,7 +136,12 @@ function renderGrid() {
     return true;
   });
 
-  if (groupByPokemon) {
+  if (viewMode === 'album') {
+    renderAlbum(grid, filteredPokemon, pokemonById);
+    return;
+  }
+
+  if (viewMode === 'pokemon') {
     // Grouped view: one section per Pokemon, cards sorted within each group.
     for (const pokemon of filteredPokemon) {
       const cards = visibleForPokemon(pokemon);
@@ -182,6 +191,149 @@ function renderGrid() {
   cardsWrap.appendChild(buildEmptySlot(null));
 
   grid.appendChild(cardsWrap);
+}
+
+// ── Album view ───────────────────────────────────────────────────────────
+// Páginas 3×3 fijas por Pokédex: una página = una generación,
+// una fila = una línea evolutiva (base → media → final).
+const ALBUM_GEN_NAMES = {
+  0: 'Especiales', 1: 'Generación 1', 2: 'Generación 2', 3: 'Generación 3',
+  4: 'Generación 4', 5: 'Generación 5', 6: 'Generación 6', 7: 'Generación 7',
+  8: 'Generación 8', 9: 'Generación 9'
+};
+
+function cardsForPokemonInTab(pokemonId) {
+  return allCards.filter(c => {
+    if (c.pokemon_id !== pokemonId) return false;
+    if (activeTab === 'wishlist') return c.status === 'wishlist';
+    if (activeTab === 'owned') return c.status === 'owned';
+    return true;
+  });
+}
+
+// Carta representativa de un hueco: preferimos las owned, y dentro la más cara.
+function pickAlbumCard(cards) {
+  const owned = cards.filter(c => c.status === 'owned');
+  const pool = owned.length ? owned : cards;
+  if (!pool.length) return null;
+  return pool.slice().sort((a, b) => (b.price_current || 0) - (a.price_current || 0))[0];
+}
+
+function renderAlbum(grid, filteredPokemon, pokemonById) {
+  // Una página = una generación (orden Pokédex). El álbum muestra
+  // dos páginas a la vez (izquierda/derecha), como un libro real.
+  const gens = [];
+  const seen = new Set();
+  for (const p of filteredPokemon) {
+    if (!seen.has(p.generation)) { seen.add(p.generation); gens.push(p.generation); }
+  }
+  gens.sort((a, b) => (a === 0 ? 99 : a) - (b === 0 ? 99 : b));
+
+  const pages = gens.map(gen => ({
+    gen,
+    members: filteredPokemon.filter(p => p.generation === gen),
+  }));
+
+  const totalSpreads = Math.max(1, Math.ceil(pages.length / 2));
+  albumSpread = Math.min(Math.max(0, albumSpread), totalSpreads - 1);
+
+  const left = pages[albumSpread * 2];
+  const right = pages[albumSpread * 2 + 1];
+
+  const book = document.createElement('div');
+  book.className = 'album-book';
+
+  const prev = document.createElement('button');
+  prev.className = 'album-arrow';
+  prev.textContent = '‹';
+  prev.disabled = albumSpread === 0;
+  prev.onclick = () => changeAlbumPage(-1);
+
+  const spread = document.createElement('div');
+  spread.className = 'album-spread';
+  if (left) spread.appendChild(buildAlbumPage(left));
+  // Página derecha vacía si el número de generaciones es impar.
+  spread.appendChild(right ? buildAlbumPage(right)
+    : Object.assign(document.createElement('section'),
+        { className: 'album-page album-page-blank' }));
+
+  const next = document.createElement('button');
+  next.className = 'album-arrow';
+  next.textContent = '›';
+  next.disabled = albumSpread >= totalSpreads - 1;
+  next.onclick = () => changeAlbumPage(1);
+
+  book.appendChild(prev);
+  book.appendChild(spread);
+  book.appendChild(next);
+  grid.appendChild(book);
+
+  const info = document.createElement('div');
+  info.className = 'album-nav-info';
+  info.textContent = `Páginas ${albumSpread * 2 + 1}${right ? '–' + (albumSpread * 2 + 2) : ''} de ${pages.length}`;
+  grid.appendChild(info);
+}
+
+function changeAlbumPage(delta) {
+  albumSpread += delta;
+  renderGrid();
+}
+
+function buildAlbumPage(page) {
+  const { gen, members } = page;
+  const section = document.createElement('section');
+  section.className = 'album-page';
+
+  const ownedInPage = members.reduce((n, p) =>
+    n + (allCards.some(c => c.pokemon_id === p.id && c.status === 'owned') ? 1 : 0), 0);
+
+  const head = document.createElement('div');
+  head.className = 'album-page-head';
+  head.innerHTML = `<span class="album-page-title">${ALBUM_GEN_NAMES[gen] || ('Gen ' + gen)}</span>
+    <span class="album-page-count">${ownedInPage}/${members.length}</span>`;
+  section.appendChild(head);
+
+  const sleeve = document.createElement('div');
+  sleeve.className = 'album-sleeve';
+  members.forEach(p => sleeve.appendChild(buildAlbumSlot(p)));
+  section.appendChild(sleeve);
+  return section;
+}
+
+function buildAlbumSlot(pokemon) {
+  const cards = cardsForPokemonInTab(pokemon.id);
+  const card = pickAlbumCard(cards);
+  const slot = document.createElement('div');
+
+  if (!card) {
+    slot.className = 'album-slot empty';
+    slot.innerHTML = `
+      <div class="album-slot-ph ${typeClass(pokemon.type_1)}">${typeEmoji(pokemon.type_1)}</div>
+      <div class="album-slot-name">${pokemon.name}</div>`;
+    slot.onclick = () => openAddModal(pokemon.name);
+    return slot;
+  }
+
+  const owned = card.status === 'owned';
+  // Las que no tengo en la colección se muestran "bloqueadas":
+  // oscurecidas, pero la carta sigue siendo visible y clicable.
+  slot.className = `album-slot ${owned ? 'owned' : 'wish locked'}`;
+  const extra = cards.length > 1 ? `<span class="album-slot-extra">+${cards.length - 1}</span>` : '';
+  slot.innerHTML = `
+    <div class="album-slot-img">
+      ${card.image_url
+        ? `<img src="${card.image_url}" alt="${card.card_name}" loading="lazy">`
+        : `<div class="album-slot-ph ${typeClass(pokemon.type_1)}">${typeEmoji(pokemon.type_1)}</div>`}
+      ${owned ? '' : '<span class="album-slot-lock">🔒</span>'}
+      <span class="album-slot-badge">${owned ? '✅' : '💜'}</span>
+      ${extra}
+    </div>
+    <div class="album-slot-name">${pokemon.name}</div>
+    <div class="album-slot-price ${card.price_current == null ? 'stale' : ''}">
+      ${card.price_current != null ? '€' + card.price_current.toFixed(2) : '–'}
+    </div>`;
+  slot.onclick = () => openDetailModal(card);
+  return slot;
 }
 
 function buildEmptySlot(pokemon) {
