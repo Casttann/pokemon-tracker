@@ -208,8 +208,14 @@ const ALBUM_PER_PAGE = 9; // 3×3
 function defaultAlbumOrder() {
   const byPokemon = {};
   for (const c of allCards) (byPokemon[c.pokemon_id] ||= []).push(c);
+  // Gen 0 (Pikachu/Eevee especiales) al final; el resto en orden Pokédex.
+  const sorted = allPokemon.slice().sort((a, b) => {
+    const ga = a.generation === 0 ? 99 : a.generation;
+    const gb = b.generation === 0 ? 99 : b.generation;
+    return ga - gb;
+  });
   const ids = [];
-  for (const p of allPokemon) {
+  for (const p of sorted) {
     (byPokemon[p.id] || []).slice().sort((a, b) => {
       const ao = a.status === 'owned' ? 0 : 1, bo = b.status === 'owned' ? 0 : 1;
       if (ao !== bo) return ao - bo;
@@ -312,9 +318,22 @@ function buildAlbumPage(cards, pageIndex) {
   const startIdx = pageIndex * ALBUM_PER_PAGE;
   const owned = cards.filter(c => c.status === 'owned').length;
 
+  // Nombres únicos de Pokémon en esta página (en orden de aparición, máx 5)
+  const seenNames = [];
+  const seenIds = new Set();
+  for (const c of cards) {
+    if (!seenIds.has(c.pokemon_id)) {
+      seenIds.add(c.pokemon_id);
+      const p = allPokemon.find(p => p.id === c.pokemon_id);
+      if (p) seenNames.push(p.name);
+    }
+  }
+  const subtitle = seenNames.slice(0, 5).join(' · ') + (seenNames.length > 5 ? '…' : '');
+
   const head = document.createElement('div');
   head.className = 'album-page-head';
-  head.innerHTML = `<span class="album-page-title">Página ${pageIndex + 1}</span>
+  head.innerHTML = `<span class="album-page-title">Pág. ${pageIndex + 1}</span>
+    <span class="album-page-sub">${subtitle}</span>
     <span class="album-page-count">${owned}/${cards.length} ✅</span>`;
   section.appendChild(head);
 
@@ -762,47 +781,86 @@ const MONTH_NAMES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
 
 // Guía de precios de referencia (€, Todohits + Cardmarket, jun 2026).
 // Editable a mano si cambian los precios del mercado.
-const PRICE_GUIDE = {
-  sobre: 6.5,        // sobre suelto Chaos Rising (Todohits)
-  blister: 22,       // blíster 3 sobres + promo (te dio el Charmeleon)
-  bundle: 40,        // bundle ~6 sobres
-  etb_es: 45,        // ETB español (más barata, menos revalorización)
-  etb_en: 85,        // ETB inglés (mantiene/sube valor → tu objetivo)
-  box: 200,          // caja 36 sobres
-};
+// Devuelve consejos concretos de compra para el mes: qué cartas o líneas
+// completar, cuáles están baratas, qué falta en el álbum.
+// `available` = presupuesto - gastado ese mes. `etbFund` no se usa ya.
+function buyAdvice(available) {
+  if (available <= 0) return '🔴 Presupuesto agotado este mes. ¡Ya puedes ir al siguiente!';
 
-// Devuelve un consejo de compra según el dinero disponible ese mes.
-// `etbFund` = ahorro acumulado disponible hacia una ETB inglesa.
-function buyAdvice(available, etbFund) {
-  const g = PRICE_GUIDE;
-  if (available <= 0) {
-    return 'Presupuesto agotado. Mejor ahorrar hacia la ETB inglesa (~€' + g.etb_en + ').';
+  const tips = [];
+
+  // 1) Líneas evolutivas casi completas (2 de 3 owned, falta 1 que tengo en wishlist y es asequible)
+  const ownedIds = new Set(allCards.filter(c => c.status === 'owned').map(c => c.pokemon_id));
+  const wishByPokemon = {};
+  allCards.filter(c => c.status === 'wishlist' && c.price_current != null)
+    .forEach(c => { (wishByPokemon[c.pokemon_id] ||= []).push(c); });
+
+  // Agrupa Pokémon en líneas evolutivas (grupos de 3 consecutivos dentro de cada gen)
+  const lines = [];
+  for (let i = 0; i < allPokemon.length; i += 3) {
+    const trio = allPokemon.slice(i, i + 3);
+    if (trio.length === 3 && trio[0].generation === trio[1].generation
+        && trio[1].generation === trio[2].generation) {
+      lines.push(trio);
+    }
   }
-  if (available < g.sobre) {
-    return 'Casi sin margen: guarda lo que queda hacia la ETB inglesa.';
+
+  for (const trio of lines) {
+    const ownedCount = trio.filter(p => ownedIds.has(p.id)).length;
+    if (ownedCount < 2) continue; // necesito al menos 2 para que valga la pena el consejo
+    const missing = trio.filter(p => !ownedIds.has(p.id));
+    for (const p of missing) {
+      const cheapest = (wishByPokemon[p.id] || [])
+        .filter(c => c.price_current <= available)
+        .sort((a, b) => a.price_current - b.price_current)[0];
+      if (cheapest) {
+        tips.push(`🔗 Completa la línea de <strong>${trio[0].name}</strong>: cómprate `
+          + `<strong>${cheapest.card_name}</strong> de ${p.name} (~€${cheapest.price_current.toFixed(2)}) `
+          + `y te queda la línea entera.`);
+      }
+    }
   }
-  if (available >= g.etb_en) {
-    return '🎯 Te llega para 1 ETB inglesa (~€' + g.etb_en + ') — la opción que mantiene/sube valor. '
-      + 'Sobrante: ' + Math.floor((available - g.etb_en) / g.sobre) + ' sobre(s) suelto(s).';
+
+  // 2) Cartas baratas de la wishlist que caben en el presupuesto (hasta 3 más baratas)
+  const cheap = allCards
+    .filter(c => c.status === 'wishlist' && c.price_current != null && c.price_current <= available)
+    .sort((a, b) => a.price_current - b.price_current)
+    .slice(0, 3);
+
+  if (cheap.length) {
+    const names = cheap.map(c => {
+      const p = allPokemon.find(p => p.id === c.pokemon_id);
+      return `<strong>${c.card_name}</strong>${p ? ' (' + p.name + ', €' + c.price_current.toFixed(2) + ')' : ''}`;
+    }).join(', ');
+    tips.push(`💰 Cartas baratas de tu wishlist que caben este mes: ${names}.`);
   }
-  // No llega a ETB inglesa este mes: ¿llega sumando ahorro?
-  if (etbFund != null && etbFund + available >= g.etb_en) {
-    return '💰 Con el ahorro acumulado (€' + etbFund.toFixed(0) + ') + este mes llegas a la ETB inglesa (~€'
-      + g.etb_en + '). Recomendado: AHORRAR este mes y comprarla.';
+
+  // 3) Huecos vacíos en el álbum: pokémon con hueco libre y carta asequible en wishlist
+  if (albumLoaded && albumOrder.length > 0) {
+    const inAlbum = new Set(albumOrder.map(c => c.pokemon_id));
+    const missing = allPokemon
+      .filter(p => !inAlbum.has(p.id))
+      .slice(0, 5);
+    const fillable = [];
+    for (const p of missing) {
+      const card = (wishByPokemon[p.id] || [])
+        .filter(c => c.price_current <= available)
+        .sort((a, b) => a.price_current - b.price_current)[0];
+      if (card) fillable.push(`<strong>${card.card_name}</strong> de ${p.name} (€${card.price_current.toFixed(2)})`);
+    }
+    if (fillable.length) {
+      tips.push(`📔 Rellena huecos del álbum: ${fillable.slice(0, 2).join(' o ')}.`);
+    }
   }
-  if (available >= g.bundle) {
-    const n = Math.floor(available / g.blister);
-    return 'Opciones: ' + n + ' blíster(s) de 3 sobres (€' + g.blister + ' c/u, mejor relación) '
-      + 'o un bundle (~€' + g.bundle + '). O guarda hacia la ETB inglesa (~€' + g.etb_en + ').';
+
+  if (!tips.length) {
+    // Sin datos suficientes: consejo genérico pero sin ETB
+    if (available < 10) return `🟡 Poco margen (€${available.toFixed(0)}). Si ves algo en Todohits por menos, es buen momento.`;
+    if (available < 25) return `👍 Con €${available.toFixed(0)} te llega para 1–3 cartas sueltas de la wishlist en Todohits.`;
+    return `✅ Tienes €${available.toFixed(0)} disponibles. Revisa la wishlist y busca en Todohits; coge lo que complete una línea o una página del álbum.`;
   }
-  if (available >= g.blister) {
-    const sobres = Math.floor((available - g.blister) / g.sobre);
-    return '👍 1 blíster de 3 sobres + promo (€' + g.blister + ')'
-      + (sobres > 0 ? ' y ' + sobres + ' sobre(s) suelto(s)' : '')
-      + '. O ahorra hacia la ETB inglesa.';
-  }
-  const n = Math.floor(available / g.sobre);
-  return n + ' sobre(s) suelto(s) (~€' + g.sobre + ' c/u en Todohits). O acumula hacia la ETB inglesa.';
+
+  return tips.slice(0, 2).join('<br><br>');
 }
 
 async function openPlanModal() {
@@ -851,7 +909,7 @@ function renderPlan() {
     const avail = nextMonth.budget - nextMonth.spent;
     document.getElementById('plan-advice').innerHTML = `
       <div class="plan-advice-label">💡 Próximo mes · ${MONTH_NAMES[nextMonth.month - 1]} (disponible €${avail.toFixed(0)})</div>
-      <div class="plan-advice-text">${buyAdvice(avail, etbFund)}</div>`;
+      <div class="plan-advice-text">${buyAdvice(avail)}</div>`;
   } else {
     document.getElementById('plan-advice').innerHTML = '';
   }
@@ -870,7 +928,7 @@ function renderPlan() {
         <label>Presupuesto €<input type="number" min="0" step="1" value="${m.budget}" data-m="${m.month}" data-f="budget"></label>
         <label>Gastado €<input type="number" min="0" step="0.01" value="${m.spent}" data-m="${m.month}" data-f="spent"></label>
       </div>
-      <div class="plan-month-advice">💡 ${buyAdvice(avail, null)}</div>
+      <div class="plan-month-advice">💡 ${buyAdvice(avail)}</div>
       <textarea class="plan-note" placeholder="¿Qué quiero comprar este mes?" data-m="${m.month}" data-f="plan_note">${m.plan_note || ''}</textarea>
       <button class="btn-primary plan-save-btn" onclick="savePlanMonth(${m.month})">Guardar</button>
     </div>`;
