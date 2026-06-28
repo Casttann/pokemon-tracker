@@ -210,4 +210,6 @@ if __name__ == "__main__":
     if not application.config.get("TESTING"):
         from scheduler import start_scheduler
         start_scheduler(application)
-    application.run(port=port, debug=False)
+    # host=0.0.0.0 para poder acceder desde el móvil en la misma red WiFi
+    # (p.ej. http://192.168.1.38:5000) e instalarla como PWA.
+    application.run(host="0.0.0.0", port=port, debug=False)

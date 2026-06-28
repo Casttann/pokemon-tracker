@@ -1,0 +1,16 @@
+{
+  "name": "Pokédex Tracker",
+  "short_name": "Pokédex",
+  "description": "Seguimiento de colección e inversión en cartas Pokémon",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a1530",
+  "theme_color": "#1a1530",
+  "icons": [
+    { "src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
