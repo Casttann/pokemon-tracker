@@ -920,3 +920,101 @@ main.album-mode {
   .chat-panel { right: 10px; bottom: 80px; width: calc(100vw - 20px); }
   .chat-fab { right: 14px; bottom: 14px; }
 }
+
+/* ── MÓVIL (iPhone y similares) ─────────────────────────────────────────── */
+@media (max-width: 480px) {
+  body { font-size: 14px; }
+
+  /* HEADER: apila título/stats/botones, todo más compacto */
+  header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .header-title { font-size: 15px; width: 100%; }
+  .header-stats { gap: 10px; font-size: 12px; order: 3; width: 100%; }
+  .stat { font-size: 11px; }
+  .last-update { display: none; }
+  .btn-refresh {
+    padding: 7px 10px;
+    font-size: 12px;
+    flex: 1 1 auto;
+  }
+  .btn-refresh span:first-child { margin-right: 2px; }
+
+  /* FILTROS: todo apilado y deslizable horizontalmente donde haga falta */
+  .filters { padding: 8px 12px; gap: 8px; }
+  .filter-tabs, .view-toggle { width: 100%; }
+  .filter-tabs .tab, .view-toggle .view-btn { flex: 1; text-align: center; }
+  .filter-gens {
+    width: 100%;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 2px;
+  }
+  .filter-gens .gen-btn { flex: 0 0 auto; }
+  .sort-select { margin-left: 0; flex: 1 1 100px; }
+  .search-input { width: 100%; flex: 1 1 100%; }
+
+  /* GRID DE CARTAS: 2 columnas fijas, mejor que auto-fill con tarjetas chiquitas */
+  main { padding: 12px; gap: 20px; }
+  .section-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .card-name { font-size: 12px; }
+  .card-info { padding: 8px; }
+
+  /* MODALES: ocupan casi toda la pantalla, sin desperdiciar espacio */
+  .modal-overlay { padding: 0; align-items: flex-end; }
+  .modal {
+    max-width: 100%;
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 16px 16px 0 0;
+    padding: 16px;
+  }
+  .modal-detail-inner,
+  .modal-plan-inner,
+  .modal-dashboard-inner,
+  .modal-picker-inner {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  /* DETALLE DE CARTA: imagen arriba, datos debajo, en vez de en fila */
+  .detail-layout { flex-direction: column; gap: 16px; }
+  .detail-img { width: 100%; max-width: 240px; margin: 0 auto; }
+
+  /* PLANNING */
+  .plan-header { flex-wrap: wrap; gap: 8px; }
+  .plan-summary { flex-wrap: wrap; }
+  .plan-sum-item { flex: 1 1 45%; }
+  .plan-month-fields { flex-wrap: wrap; }
+  .plan-month-fields label { flex: 1 1 45%; }
+
+  /* DASHBOARD */
+  .dash-header { flex-direction: column; align-items: stretch; }
+  .dash-kpis { grid-template-columns: repeat(2, 1fr); }
+  .kpi-value { font-size: 16px; }
+  .dash-charts { grid-template-columns: 1fr; }
+  .dash-chart-box canvas { height: 160px !important; }
+  .movers-table { font-size: 11px; }
+
+  /* PICKER DE CARTAS DEL ÁLBUM */
+  .picker-row { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+
+  /* ÁLBUM: una sola página visible, sleeve 3×3 más compacto */
+  .album-book { gap: 6px; }
+  .album-arrow { width: 32px; height: 60px; font-size: 20px; border-radius: 8px; }
+  .album-page { padding: 10px; border-radius: 10px; }
+  .album-page-head { margin-bottom: 10px; padding-bottom: 6px; }
+  .album-page-title { font-size: 13px; }
+  .album-page-sub { display: none; }
+  .album-page-count { font-size: 11px; }
+  .album-sleeve { gap: 6px; }
+  .album-slot { padding: 5px; gap: 3px; border-radius: 7px; }
+  .album-slot-name { font-size: 9px; }
+  .album-slot-price { font-size: 10px; }
+  .album-nav-info { font-size: 10px; text-align: center; }
+}
