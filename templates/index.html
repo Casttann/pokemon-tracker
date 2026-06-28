@@ -152,6 +152,26 @@
     </div>
   </div>
 
+  <!-- AI CHAT ASSISTANT -->
+  <button class="chat-fab" id="chat-fab" onclick="toggleChat()" title="Asistente IA">💬</button>
+  <div class="chat-panel" id="chat-panel" style="display:none">
+    <div class="chat-panel-head">
+      <span>🤖 Asistente</span>
+      <button class="modal-close" onclick="toggleChat()">✕</button>
+    </div>
+    <div class="chat-messages" id="chat-messages">
+      <div class="chat-msg chat-msg-assistant">
+        ¡Hola! Puedo añadir o quitar cartas, moverlas en el álbum o contarte cómo va tu colección.
+        Pregúntame lo que quieras.
+      </div>
+    </div>
+    <div class="chat-input-row">
+      <input class="chat-input" id="chat-input" placeholder="Escribe un mensaje..."
+             onkeydown="if(event.key==='Enter') sendChatMessage()">
+      <button class="btn-primary chat-send" onclick="sendChatMessage()">➤</button>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="/static/app.js"></script>
 </body>

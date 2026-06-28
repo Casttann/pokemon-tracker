@@ -16,6 +16,10 @@ def create_app(testing=False):
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{db_path}"
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     app.config["TESTING"] = testing
+    # Evita que el navegador cachee JS/CSS estáticos: en desarrollo local
+    # queremos ver los cambios siempre, sin tener que limpiar caché.
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+    app.config["TEMPLATES_AUTO_RELOAD"] = True
     db.init_app(app)
 
     with app.app_context():
@@ -177,6 +181,25 @@ def create_app(testing=False):
             "updating": is_updating(),
             "seeding": is_seeding(),
         })
+
+    @app.route("/api/chat", methods=["POST"])
+    def api_chat():
+        from ai_assistant import chat, AssistantError
+        data = request.get_json() or {}
+        history = data.get("history")
+        if not isinstance(history, list) or not history:
+            return jsonify({"error": "history must be a non-empty list"}), 400
+        for m in history:
+            if not isinstance(m, dict) or m.get("role") not in ("user", "assistant") \
+               or not isinstance(m.get("content"), str):
+                return jsonify({"error": "each message needs role (user/assistant) and content (string)"}), 400
+        try:
+            reply, mutated = chat(history)
+        except AssistantError as exc:
+            return jsonify({"error": str(exc)}), 500
+        except Exception as exc:  # noqa: BLE001 - surface upstream API errors to the UI
+            return jsonify({"error": f"Error del asistente: {exc}"}), 502
+        return jsonify({"reply": reply, "mutated": mutated})
 
     return app
 

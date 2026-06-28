@@ -15,11 +15,13 @@ greenlet==3.5.1
 idna==3.17
 iniconfig==2.3.0
 itsdangerous==2.2.0
+openai==2.41.1
 openpyxl==3.1.5
 packaging==26.2
 pillow==12.2.0
 pluggy==1.6.0
 pytest==9.0.3
+python-dotenv==1.2.2
 reportlab==4.5.1
 requests==2.34.2
 soupsieve==2.8.4

@@ -24,6 +24,10 @@ def _get(url, params=None):
 
 # Price keys from the PokemonTCG API cardmarket data, in order of preference.
 _PRICE_KEYS = ("trendPrice", "averageSellPrice", "avg7", "avg30")
+# Fallback: TCGPlayer price variants/keys, tried if cardmarket has no price
+# (common for cards too new/rare to have CardMarket market data yet).
+_TCGPLAYER_VARIANTS = ("holofoil", "reverseHolofoil", "normal", "1stEditionHolofoil")
+_TCGPLAYER_KEYS = ("market", "mid", "low")
 
 
 def _extract_price(prices):
@@ -34,6 +38,22 @@ def _extract_price(prices):
         value = prices.get(key)
         if isinstance(value, (int, float)) and value > 0:
             return float(value)
+    return None
+
+
+def _extract_tcgplayer_price(tcgplayer):
+    """Fallback price source when CardMarket has no data for this card."""
+    if not tcgplayer:
+        return None
+    prices = tcgplayer.get("prices") or {}
+    for variant in _TCGPLAYER_VARIANTS:
+        variant_prices = prices.get(variant)
+        if not variant_prices:
+            continue
+        for key in _TCGPLAYER_KEYS:
+            value = variant_prices.get(key)
+            if isinstance(value, (int, float)) and value > 0:
+                return float(value)
     return None
 
 
@@ -60,6 +80,16 @@ def search_cardmarket(pokemon_name: str, max_price: float = MAX_PRICE,
         for card in cards:
             cardmarket = card.get("cardmarket") or {}
             price = _extract_price(cardmarket.get("prices"))
+            url = cardmarket.get("url", "")
+            if price is None:
+                # Sin precio de CardMarket (carta muy nueva/rara): usa
+                # TCGPlayer como respaldo en vez de descartar la carta.
+                price = _extract_tcgplayer_price(card.get("tcgplayer"))
+            # Usamos siempre el formato prices.pokemontcg.io/cardmarket/<id>
+            # (en vez de la URL de tcgplayer.com) para que update_price()
+            # pueda seguir refrescando el precio más adelante.
+            if not url:
+                url = f"https://prices.pokemontcg.io/cardmarket/{card.get('id', '')}"
             if price is None or price > max_price:
                 continue
             results.append({
@@ -67,7 +97,7 @@ def search_cardmarket(pokemon_name: str, max_price: float = MAX_PRICE,
                 "set_name": (card.get("set") or {}).get("name", ""),
                 "rarity": card.get("rarity") or "",
                 "price": price,
-                "cardmarket_url": cardmarket.get("url", ""),
+                "cardmarket_url": url,
                 "image_url": (card.get("images") or {}).get("small"),
             })
         results.sort(key=lambda r: r["price"], reverse=True)

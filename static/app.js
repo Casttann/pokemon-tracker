@@ -1,3 +1,12 @@
+// Helper: cuando una imagen de carta falla, la reemplaza por un placeholder del tipo.
+function imgFallback(img, cssClass, emoji) {
+  img.style.display = 'none';
+  const ph = document.createElement('div');
+  ph.className = cssClass;
+  ph.textContent = emoji;
+  img.parentNode.insertBefore(ph, img.nextSibling);
+}
+
 // State
 let allCards = [];
 let allPokemon = [];
@@ -263,11 +272,16 @@ function renderAlbum(grid) {
   }
   if (pages.length === 0) pages.push([]);
 
-  const totalSpreads = Math.max(1, Math.ceil(pages.length / 2));
+  // Como en un álbum físico real: la página 1 va sola en el hueco derecho
+  // (el izquierdo es la tapa interior). A partir de ahí, pares normales:
+  // spread 0 = [-, pág.1] · spread 1 = [pág.2, pág.3] · spread 2 = [pág.4, pág.5]...
+  const totalSpreads = pages.length <= 1 ? 1 : 1 + Math.ceil((pages.length - 1) / 2);
   albumSpread = Math.min(Math.max(0, albumSpread), totalSpreads - 1);
 
-  const left = pages[albumSpread * 2];
-  const right = pages[albumSpread * 2 + 1];
+  const leftIdx = albumSpread === 0 ? null : albumSpread * 2 - 1;
+  const rightIdx = albumSpread === 0 ? 0 : albumSpread * 2;
+  const left = leftIdx != null ? pages[leftIdx] : null;
+  const right = pages[rightIdx];
 
   const book = document.createElement('div');
   book.className = 'album-book';
@@ -280,8 +294,8 @@ function renderAlbum(grid) {
 
   const spread = document.createElement('div');
   spread.className = 'album-spread';
-  spread.appendChild(buildAlbumPage(left, albumSpread * 2));
-  spread.appendChild(right ? buildAlbumPage(right, albumSpread * 2 + 1) : blankAlbumPage());
+  spread.appendChild(left ? buildAlbumPage(left, leftIdx) : blankAlbumPage());
+  spread.appendChild(right ? buildAlbumPage(right, rightIdx) : blankAlbumPage());
 
   const next = document.createElement('button');
   next.className = 'album-arrow';
@@ -297,8 +311,8 @@ function renderAlbum(grid) {
   const info = document.createElement('div');
   info.className = 'album-nav-info';
   const ownedTotal = albumOrder.filter(c => c.status === 'owned').length;
-  info.textContent = `Páginas ${albumSpread * 2 + 1}${right ? '–' + (albumSpread * 2 + 2) : ''}`
-    + ` de ${pages.length} · ${ownedTotal}/${albumOrder.length} en colección`;
+  const pageLabel = left ? `Páginas ${leftIdx + 1}–${rightIdx + 1}` : `Página ${rightIdx + 1}`;
+  info.textContent = `${pageLabel} de ${pages.length} · ${ownedTotal}/${albumOrder.length} en colección`;
   grid.appendChild(info);
 }
 
@@ -359,7 +373,7 @@ function buildAlbumCardSlot(card, index) {
   slot.innerHTML = `
     <div class="album-slot-img">
       ${card.image_url
-        ? `<img src="${card.image_url}" alt="${card.card_name}" loading="lazy">`
+        ? `<img src="${card.image_url}" alt="${card.card_name}" loading="lazy" onerror="imgFallback(this,'album-slot-ph ${typeClass(pokemon.type_1)}','${typeEmoji(pokemon.type_1)}')">`
         : `<div class="album-slot-ph ${typeClass(pokemon.type_1)}">${typeEmoji(pokemon.type_1)}</div>`}
       ${owned ? '' : '<span class="album-slot-lock">🔒</span>'}
       <span class="album-slot-badge">${owned ? '✅' : '💜'}</span>
@@ -387,6 +401,15 @@ function buildAlbumCardSlot(card, index) {
   slot.appendChild(ctrls);
 
   slot.onclick = () => openDetailModal(card);
+
+  // Arrastra y suelta sobre otro hueco para intercambiar de posición.
+  const drag = albumSlotDragHandlers(index);
+  slot.draggable = drag.draggable;
+  slot.addEventListener('dragstart', drag.ondragstart);
+  slot.addEventListener('dragover', drag.ondragover);
+  slot.addEventListener('dragleave', drag.ondragleave);
+  slot.addEventListener('drop', drag.ondrop);
+
   return slot;
 }
 
@@ -397,6 +420,20 @@ function buildAlbumGapSlot(index) {
   slot.innerHTML = `<div class="album-gap-plus">＋</div>
     <div class="album-slot-name">Añadir carta</div>`;
   slot.onclick = () => openAlbumPicker('insert', index);
+
+  // Soltar una carta arrastrada aquí = moverla al final de la secuencia
+  // (el hueco no tiene posición real todavía, así que no hay con qué
+  // intercambiar: simplemente se saca de su sitio y se manda al final).
+  slot.addEventListener('dragover', (e) => { e.preventDefault(); slot.classList.add('drag-over'); });
+  slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+  slot.addEventListener('drop', (e) => {
+    e.preventDefault();
+    slot.classList.remove('drag-over');
+    if (albumDragIndex === null) return;
+    const [card] = albumOrder.splice(albumDragIndex, 1);
+    albumDragIndex = null;
+    if (card) { albumOrder.push(card); saveAlbum(); }
+  });
   return slot;
 }
 
@@ -465,7 +502,7 @@ function renderAlbumPicker(search) {
       it.className = `picker-item ${used ? 'used' : ''} ${card.status === 'owned' ? 'owned' : ''}`;
       it.innerHTML = `
         ${card.image_url
-          ? `<img src="${card.image_url}" loading="lazy" alt="">`
+          ? `<img src="${card.image_url}" loading="lazy" alt="" onerror="imgFallback(this,'picker-ph ${typeClass(p.type_1)}','${typeEmoji(p.type_1)}')">`
           : `<div class="picker-ph ${typeClass(p.type_1)}">${typeEmoji(p.type_1)}</div>`}
         <div class="picker-item-name">${card.card_name}</div>
         <div class="picker-item-meta">${card.status === 'owned' ? '✅' : '💜'} `
@@ -524,7 +561,7 @@ function buildCardTile(card, pokemon) {
   el.innerHTML = `
     <div class="card-img-wrap">
       ${card.image_url
-        ? `<img src="${card.image_url}" alt="${card.card_name}" loading="lazy">`
+        ? `<img src="${card.image_url}" alt="${card.card_name}" loading="lazy" onerror="imgFallback(this,'card-placeholder ${typeClass(pokemon.type_1)}','${typeEmoji(pokemon.type_1)}')">`
         : `<div class="card-placeholder ${typeClass(pokemon.type_1)}">${typeEmoji(pokemon.type_1)}</div>`}
     </div>
     <div class="badge ${card.status === 'owned' ? 'badge-owned' : 'badge-wishlist'}">
@@ -1047,6 +1084,93 @@ function renderDashboard(stats) {
           <td class="${m.change_pct >= 0 ? 'mover-up' : 'mover-down'}">${m.change_pct >= 0 ? '▲' : '▼'} ${Math.abs(m.change_pct).toFixed(1)}%</td>
         </tr>`).join('')}</tbody>
     </table>` : '<div class="dash-chart-title">Sin suficiente histórico para calcular movimientos.</div>';
+}
+
+// ── AI Chat Assistant ────────────────────────────────────────────────────
+let chatHistory = []; // [{role:'user'|'assistant', content:str}]
+let chatOpen = false;
+let chatSending = false;
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chat-panel').style.display = chatOpen ? 'flex' : 'none';
+  if (chatOpen) document.getElementById('chat-input').focus();
+}
+
+function appendChatBubble(role, text) {
+  const wrap = document.getElementById('chat-messages');
+  const bubble = document.createElement('div');
+  bubble.className = `chat-msg chat-msg-${role}`;
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  wrap.scrollTop = wrap.scrollHeight;
+  return bubble;
+}
+
+async function sendChatMessage() {
+  if (chatSending) return;
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+
+  appendChatBubble('user', text);
+  chatHistory.push({ role: 'user', content: text });
+
+  const thinking = appendChatBubble('assistant', '…');
+  chatSending = true;
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ history: chatHistory }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) {
+      thinking.textContent = '⚠️ ' + (data.error || 'Error del asistente.');
+      thinking.classList.add('chat-msg-error');
+      return;
+    }
+    thinking.textContent = data.reply;
+    chatHistory.push({ role: 'assistant', content: data.reply });
+
+    // Si el asistente ha modificado datos, refresca cartas/álbum.
+    if (data.mutated && data.mutated.length) {
+      await loadCards();
+      if (data.mutated.includes('album_set_order')) albumLoaded = false;
+      renderGrid();
+    }
+  } catch (err) {
+    thinking.textContent = '⚠️ No se pudo conectar con el asistente.';
+    thinking.classList.add('chat-msg-error');
+  } finally {
+    chatSending = false;
+    document.getElementById('chat-messages').scrollTop = 1e9;
+  }
+}
+
+// ── Album: arrastrar y soltar para intercambiar cartas ─────────────────────
+let albumDragIndex = null;
+
+function albumSlotDragHandlers(index) {
+  return {
+    draggable: true,
+    ondragstart: (e) => {
+      albumDragIndex = index;
+      e.dataTransfer.effectAllowed = 'move';
+    },
+    ondragover: (e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); },
+    ondragleave: (e) => e.currentTarget.classList.remove('drag-over'),
+    ondrop: (e) => {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      if (albumDragIndex === null || albumDragIndex === index) return;
+      const a = albumDragIndex, b = index;
+      [albumOrder[a], albumOrder[b]] = [albumOrder[b], albumOrder[a]];
+      albumDragIndex = null;
+      saveAlbum();
+    },
+  };
 }
 
 // ── Boot ──────────────────────────────────────────────────────────────────
