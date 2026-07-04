@@ -43,6 +43,12 @@ Reglas importantes:
   usuario cuando haya varias opciones. La única excepción es que el usuario \
   ya haya indicado el set Y la rareza exactos (p.ej. "el Radiant Rare de \
   Astral Radiance") y solo encaje una carta de la lista.
+- Algunas cartas (sets muy recientes) aparecen en search_cards_to_add con \
+  price=null porque todavía no tienen precio de mercado en ninguna fuente. \
+  NO las descartes ni digas que no existen: díselo al usuario ("existe pero \
+  aún no tiene precio de mercado") y pídele que te diga qué precio quiere \
+  registrar manualmente antes de llamar a add_card (price es obligatorio y \
+  debe ser un número positivo).
 - Para añadir una carta nueva necesitas el pokemon_id: usa search_pokemon si \
   no lo tienes.
 - search_pokemon y search_cards_to_add son independientes: search_pokemon \

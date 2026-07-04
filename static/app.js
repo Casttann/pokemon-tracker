@@ -630,7 +630,7 @@ async function searchCards() {
         <div class="result-name">${r.card_name}</div>
         <div class="result-set">${r.set_name} · ${r.rarity}</div>
       </div>
-      <div class="result-price">€${r.price.toFixed(2)}</div>`;
+      <div class="result-price">${r.price != null ? '€' + r.price.toFixed(2) : 'sin precio'}</div>`;
     item.onclick = () => addCard(r, pokemon);
     resultsEl.appendChild(item);
   }
@@ -653,6 +653,12 @@ async function addCard(result, pokemon) {
     alert('No se encontró el Pokemon en la lista. Verifica el nombre.');
     return;
   }
+  let price = result.price;
+  if (price == null) {
+    const manual = prompt(`"${result.card_name}" todavía no tiene precio de mercado.\nIntroduce un precio manual (€):`);
+    price = parseFloat((manual || '').replace(',', '.'));
+    if (!manual || isNaN(price) || price <= 0) return;
+  }
   await fetch('/api/cards', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
@@ -661,7 +667,7 @@ async function addCard(result, pokemon) {
       card_name: result.card_name,
       set_name: result.set_name,
       rarity: result.rarity,
-      price: result.price,
+      price: price,
       image_url: result.image_url,
       cardmarket_url: result.cardmarket_url
     })

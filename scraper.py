@@ -90,7 +90,11 @@ def search_cardmarket(pokemon_name: str, max_price: float = MAX_PRICE,
             # pueda seguir refrescando el precio más adelante.
             if not url:
                 url = f"https://prices.pokemontcg.io/cardmarket/{card.get('id', '')}"
-            if price is None or price > max_price:
+            # Cartas demasiado nuevas/raras sin precio en ninguna fuente se
+            # devuelven igualmente (price=None) para que el usuario sepa que
+            # existen y pueda introducir un precio manual, en vez de
+            # descartarlas silenciosamente como si no existieran.
+            if price is not None and price > max_price:
                 continue
             results.append({
                 "card_name": card.get("name", ""),
@@ -100,7 +104,7 @@ def search_cardmarket(pokemon_name: str, max_price: float = MAX_PRICE,
                 "cardmarket_url": url,
                 "image_url": (card.get("images") or {}).get("small"),
             })
-        results.sort(key=lambda r: r["price"], reverse=True)
+        results.sort(key=lambda r: r["price"] if r["price"] is not None else -1, reverse=True)
         return results
     except Exception:
         return []
