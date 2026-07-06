@@ -182,33 +182,6 @@ def create_app(testing=False):
             "seeding": is_seeding(),
         })
 
-    @app.route("/api/admin/import", methods=["POST"])
-    def api_admin_import():
-        """One-off migration endpoint: replaces cards/price_history/monthly_plan
-        with a full dump from another instance (e.g. local -> Railway). Protected
-        by a shared secret since it wipes existing data on this instance."""
-        from database import Card, PriceHistory, MonthlyPlan
-        token = request.headers.get("X-Admin-Token", "")
-        expected = os.environ.get("ADMIN_TOKEN", "")
-        if not expected or token != expected:
-            return jsonify({"error": "unauthorized"}), 401
-        data = request.get_json() or {}
-        db.session.query(PriceHistory).delete()
-        db.session.query(Card).delete()
-        db.session.query(MonthlyPlan).delete()
-        for row in data.get("cards", []):
-            db.session.add(Card(**row))
-        for row in data.get("price_history", []):
-            db.session.add(PriceHistory(**row))
-        for row in data.get("monthly_plan", []):
-            db.session.add(MonthlyPlan(**row))
-        db.session.commit()
-        return jsonify({
-            "cards": len(data.get("cards", [])),
-            "price_history": len(data.get("price_history", [])),
-            "monthly_plan": len(data.get("monthly_plan", [])),
-        })
-
     @app.route("/api/chat", methods=["POST"])
     def api_chat():
         from ai_assistant import chat, AssistantError
